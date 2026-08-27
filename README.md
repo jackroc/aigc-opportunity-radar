@@ -14,6 +14,12 @@ A standalone, zero-build website for discovering active and officially announced
 
 Contest data originates from [Awesome AIGC Creative Contests](https://github.com/MartinDelophy/Awesome-AIGC-Creative-Contests).
 
+## Data synchronization
+
+The `Sync upstream contest data` GitHub Actions workflow checks the upstream repository every 15 minutes. It validates `data/contests.json` against the upstream schema and mirrors the contest data, RSS feed, and calendar only when their contents change. Invalid or unavailable upstream responses fail safely without replacing the checked-in snapshot.
+
+The workflow can also be run manually from the repository's **Actions** tab. Each successful data change is committed to `main`, giving the site a versioned snapshot that can be audited or rolled back.
+
 ## Local preview
 
 ```bash
@@ -24,7 +30,7 @@ Open <http://127.0.0.1:8000/>. The page must be served over HTTP because browser
 
 ## Deployment
 
-Pushes to `main` deploy automatically through GitHub Pages. Configure the publishing source as **GitHub Actions** under **Settings → Pages**, then add a custom domain from the same page when ready.
+The production site is hosted on Vercel at <https://www.aigccreative.com/>. Connect this repository to the existing Vercel project and track `main` as the Production Branch. Vercel then creates preview deployments for other branches and automatically promotes every successful `main` deployment to the production domain.
 
 ## License
 

@@ -1,0 +1,80 @@
+name: Sync upstream contest data
+
+on:
+  schedule:
+    # Run away from the top of the hour, when scheduled Actions are most likely to be delayed.
+    - cron: "7,22,37,52 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/sync-upstream.yml"
+      - "scripts/sync-upstream.mjs"
+      - "scripts/sync-upstream.test.mjs"
+      - "data/**"
+      - "feed.xml"
+      - "deadlines.ics"
+  pull_request:
+    paths:
+      - ".github/workflows/sync-upstream.yml"
+      - "scripts/sync-upstream.mjs"
+      - "scripts/sync-upstream.test.mjs"
+      - "data/**"
+      - "feed.xml"
+      - "deadlines.ics"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-upstream-contest-data
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Run sync tests
+        run: node --test scripts/sync-upstream.test.mjs
+      - name: Validate checked-in mirror
+        run: node scripts/sync-upstream.mjs --check
+
+  sync:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Run sync tests
+        run: node --test scripts/sync-upstream.test.mjs
+      - name: Fetch and validate upstream files
+        run: node scripts/sync-upstream.mjs --sync
+      - name: Detect changes
+        id: changes
+        run: |
+          if git diff --quiet -- data/contests.json data/schema.json feed.xml deadlines.ics; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Commit upstream changes
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/contests.json data/schema.json feed.xml deadlines.ics
+          git commit -m "chore(data): sync upstream contest directory"
+          git push origin HEAD:main
