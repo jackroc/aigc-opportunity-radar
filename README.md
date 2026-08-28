@@ -10,7 +10,7 @@ A standalone, zero-build website for discovering active and officially announced
 - Chinese and English interfaces
 - Responsive light and dark themes
 - RSS and calendar subscription links
-- A reserved channel for future task-platform recommendations
+- Separate routes for contest opportunities and the task-platform product exploration
 
 Contest data originates from [Awesome AIGC Creative Contests](https://github.com/MartinDelophy/Awesome-AIGC-Creative-Contests).
 
@@ -27,6 +27,8 @@ python3 -m http.server 8000
 ```
 
 Open <http://127.0.0.1:8000/>. The page must be served over HTTP because browsers restrict JSON loading from `file://` URLs.
+
+The default `/` route shows contest opportunities. The task-platform product exploration lives on the separate `/tasks/` route.
 
 ## Deployment
 
