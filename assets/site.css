@@ -265,16 +265,6 @@ svg {
   content: "";
 }
 
-.nav-badge {
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  background: var(--color-surface);
-  color: var(--color-muted);
-  padding: 1px 6px;
-  font-size: 10px;
-  font-weight: 700;
-}
-
 .header-actions {
   display: flex;
   align-items: center;
