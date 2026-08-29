@@ -1,0 +1,45 @@
+name: Verify site
+
+on:
+  push:
+    branches: [main, "codex/**"]
+    paths:
+      - ".github/workflows/verify-site.yml"
+      - "assets/**"
+      - "data/**"
+      - "scripts/**"
+      - "tasks/**"
+      - "index.html"
+      - "README.md"
+  pull_request:
+    paths:
+      - ".github/workflows/verify-site.yml"
+      - "assets/**"
+      - "data/**"
+      - "scripts/**"
+      - "tasks/**"
+      - "index.html"
+      - "README.md"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-site-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Run all tests
+        run: node --test scripts/*.test.mjs
+      - name: Validate contest snapshot
+        run: node scripts/sync-upstream.mjs --check
+      - name: Validate task snapshot
+        run: node scripts/sync-task-data.mjs --check

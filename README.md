@@ -12,6 +12,8 @@ A standalone, zero-build website for discovering AIGC creative contests and publ
 - RSS and calendar subscription links
 - Separate routes for contest opportunities and a live task directory
 - Task reward clarity, visible competition, source trust, and AI-policy signals
+- An optional browser-local opportunity profile with explainable task-fit scoring
+- Per-task preflight, execution, submission, outreach, and AI-prompt helpers
 - A catalog of official task-platform entries that are not yet safe to ingest automatically
 
 Contest data originates from [Awesome AIGC Creative Contests](https://github.com/MartinDelophy/Awesome-AIGC-Creative-Contests). Task data originates from the companion [AIGC Opportunity Tasks](https://github.com/jackroc/aigc-opportunity-tasks) repository.
@@ -37,10 +39,12 @@ The default `/` route shows contest opportunities. The live task directory lives
 Useful checks:
 
 ```bash
-node --test scripts/sync-upstream.test.mjs scripts/sync-task-data.test.mjs
+node --test scripts/*.test.mjs
 node scripts/sync-upstream.mjs --check
 node scripts/sync-task-data.mjs --check
 ```
+
+The phase-two opportunity matcher stores its profile only in the current browser and does not require an account or model API. See [Phase 2: Opportunity assistant](docs/phase-2-opportunity-assistant.md) for the current boundaries and the optional server-side AI follow-up.
 
 ## Deployment
 
