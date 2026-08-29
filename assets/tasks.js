@@ -6,6 +6,16 @@ import {
   normalizeProfile,
   scoreTaskAgainstProfile,
 } from "./opportunity-matcher.mjs";
+import { CloudHistoryClient } from "./cloud-history.mjs";
+import { buildRuleAssistantReply, callAssistant, loadAssistantCapabilities } from "./conversation-assistant.mjs";
+import {
+  changeConversationProvider,
+  createConversationMessage,
+  createConversationThread,
+  openConversationStore,
+  snapshotTask,
+} from "./conversation-store.mjs";
+import { deviceLabel, getOrCreateDeviceIdentity } from "./device-identity.mjs";
 
 const DIRECTORY_SOURCES = Object.freeze({
   tasks: "/data/tasks.json",
@@ -155,7 +165,7 @@ const translations = {
     matchCautionRewardUnconfirmed: "赏金未担保",
     taskPlan: "生成行动方案",
     taskPlanLabel: (title) => `为 ${title} 生成行动方案`,
-    planAssistantLabel: "本地任务助理 · 不调用模型",
+    planAssistantLabel: "任务助理 · 对话默认保存",
     closePlan: "关闭行动方案",
     planKicker: "任务行动方案",
     planNoProfile: "未建立画像也可以使用这份基础清单；建立画像后会增加个性化匹配解释。",
@@ -194,6 +204,48 @@ const translations = {
     copiedOutreach: "联系模板已复制。",
     copiedAiPrompt: "分析提示词已复制。",
     copyFailed: "复制失败，请展开内容后手动复制。",
+    assistantKicker: "Phase three · Conversation assistant",
+    assistantTitle: "把判断变成一段可以继续的对话",
+    assistantIntro: "每次提问和回复都会保存到当前设备；使用随机设备 ID，不采集浏览器指纹。配置云数据库后会自动同步。",
+    assistantDevice: (label) => `匿名设备 ${label}`,
+    assistantStorageLocal: "保存在当前设备",
+    assistantStorageCloud: "已同步云端",
+    assistantStorageChecking: "正在检查存储",
+    assistantHistory: "对话历史",
+    assistantNewThread: "新建对话",
+    assistantNoThreads: "还没有对话。直接输入问题即可开始。",
+    assistantDeleteThread: "删除对话",
+    assistantDeleteConfirm: "删除这段对话及其中的全部消息？此操作无法撤销。",
+    assistantExportThread: "导出记录",
+    assistantProviderLabel: "AI 来源",
+    assistantProviderRules: "规则助手",
+    assistantProviderLocalCodex: "我的本地 Codex",
+    assistantProviderPlatform: "平台 AI",
+    assistantProviderByok: "我自己的 API",
+    assistantProviderUnavailable: "当前环境不可用",
+    assistantByokEndpoint: "API 地址",
+    assistantByokModel: "模型",
+    assistantByokKey: "API Key",
+    assistantShowKey: "显示 API Key",
+    assistantHideKey: "隐藏 API Key",
+    assistantByokHelp: "密钥仅保留在本次页面内存中，不写入历史、浏览器存储或数据库。当前支持 Responses API 兼容接口。",
+    assistantByokRequired: "请先填写 API 地址、模型和 API Key。",
+    assistantEmptyTitle: "从最关键的问题开始",
+    assistantEmptyText: "可以先确认赏金、AI 使用边界，或让助理拆解最小交付。",
+    assistantSuggestionPreflight: "我开工前最该确认什么？",
+    assistantSuggestionAi: "这个任务允许怎样使用 AI？",
+    assistantSuggestionScope: "帮我拆成最小可验证交付",
+    assistantComposerLabel: "向任务助理提问",
+    assistantComposerPlaceholder: "例如：我只有 5 小时，第一步应该做什么？",
+    assistantSend: "发送",
+    assistantSending: "正在分析…",
+    assistantRetryHint: "本次调用失败，问题和失败状态已保存。你可以切换来源后再次发送。",
+    assistantRulesNotice: "规则助手不调用模型；本地 Codex 只在 npm run dev 启动的本机服务中可用。",
+    assistantThreadUntitled: "新对话",
+    assistantMessageUser: "你",
+    assistantMessageAssistant: "任务助理",
+    assistantMessageFailed: "回复失败",
+    assistantNoActiveThread: "尚未开始",
     openOfficialTask: "打开官方任务页面",
     subscribeKicker: "Stay in the loop",
     subscribeTitle: "让任务主动找到你",
@@ -373,7 +425,7 @@ const translations = {
     matchCautionRewardUnconfirmed: "Reward is not guaranteed",
     taskPlan: "Create action plan",
     taskPlanLabel: (title) => `Create an action plan for ${title}`,
-    planAssistantLabel: "Local task assistant · no model call",
+    planAssistantLabel: "Task assistant · conversations saved by default",
     closePlan: "Close action plan",
     planKicker: "Task action plan",
     planNoProfile: "This baseline checklist works without a profile. Add one for personalized fit explanations.",
@@ -412,6 +464,48 @@ const translations = {
     copiedOutreach: "Outreach template copied.",
     copiedAiPrompt: "Analysis prompt copied.",
     copyFailed: "Copy failed. Expand the content and copy it manually.",
+    assistantKicker: "Phase three · Conversation assistant",
+    assistantTitle: "Turn a decision into a conversation you can continue",
+    assistantIntro: "Questions and replies use a random device ID and are saved on this device without browser fingerprinting. Cloud sync starts after storage is configured.",
+    assistantDevice: (label) => `Anonymous device ${label}`,
+    assistantStorageLocal: "Saved on this device",
+    assistantStorageCloud: "Synced to cloud",
+    assistantStorageChecking: "Checking storage",
+    assistantHistory: "Conversation history",
+    assistantNewThread: "New conversation",
+    assistantNoThreads: "No conversations yet. Ask a question to begin.",
+    assistantDeleteThread: "Delete conversation",
+    assistantDeleteConfirm: "Delete this conversation and every message in it? This cannot be undone.",
+    assistantExportThread: "Export history",
+    assistantProviderLabel: "AI provider",
+    assistantProviderRules: "Rule assistant",
+    assistantProviderLocalCodex: "My local Codex",
+    assistantProviderPlatform: "Platform AI",
+    assistantProviderByok: "My own API",
+    assistantProviderUnavailable: "Unavailable here",
+    assistantByokEndpoint: "API endpoint",
+    assistantByokModel: "Model",
+    assistantByokKey: "API key",
+    assistantShowKey: "Show API key",
+    assistantHideKey: "Hide API key",
+    assistantByokHelp: "The key stays in this page's memory only. It is never written to history, browser storage, or the database. Responses API-compatible endpoints are supported.",
+    assistantByokRequired: "Enter an API endpoint, model, and API key first.",
+    assistantEmptyTitle: "Start with the highest-value question",
+    assistantEmptyText: "Confirm the reward or AI boundary, or ask for the smallest verifiable deliverable.",
+    assistantSuggestionPreflight: "What should I confirm before starting?",
+    assistantSuggestionAi: "How may AI be used for this task?",
+    assistantSuggestionScope: "Break this into a minimum verifiable deliverable",
+    assistantComposerLabel: "Ask the task assistant",
+    assistantComposerPlaceholder: "For example: I have five hours. What should I do first?",
+    assistantSend: "Send",
+    assistantSending: "Analyzing…",
+    assistantRetryHint: "This request failed, and the question plus failure state were saved. Switch provider and send it again.",
+    assistantRulesNotice: "The rule assistant makes no model call. Local Codex is available only through the local server started with npm run dev.",
+    assistantThreadUntitled: "New conversation",
+    assistantMessageUser: "You",
+    assistantMessageAssistant: "Task assistant",
+    assistantMessageFailed: "Response failed",
+    assistantNoActiveThread: "Not started",
     openOfficialTask: "Open official task page",
     subscribeKicker: "Stay in the loop",
     subscribeTitle: "Let the right tasks find you",
@@ -473,6 +567,20 @@ const state = {
   profileActive: false,
   profileStorageFailed: false,
   planTaskId: "",
+  deviceIdentity: null,
+  devicePersistent: false,
+  conversationStore: null,
+  cloudHistory: null,
+  cloudStorage: "checking",
+  assistantCapabilities: { localCodex: false, platformConfigured: false, byokSupported: false },
+  assistantTaskId: "",
+  activeThreadId: "",
+  assistantBusy: false,
+  byokConfig: {
+    baseUrl: "https://api.openai.com/v1",
+    model: "gpt-5.6",
+    apiKey: "",
+  },
   lang: "zh",
   now: new Date(),
 };
@@ -953,6 +1061,336 @@ function renderPlanSection(titleKey, items) {
   </section>`;
 }
 
+function defaultAssistantProvider() {
+  if (state.assistantCapabilities.localCodex) return "local-codex";
+  if (state.assistantCapabilities.platformConfigured && state.cloudStorage === "cloud") return "platform";
+  return "rules";
+}
+
+function providerLabel(provider) {
+  return t({
+    rules: "assistantProviderRules",
+    "local-codex": "assistantProviderLocalCodex",
+    platform: "assistantProviderPlatform",
+    byok: "assistantProviderByok",
+  }[provider] || "assistantProviderRules");
+}
+
+function providerAvailable(provider) {
+  if (provider === "rules") return true;
+  if (provider === "local-codex") return state.assistantCapabilities.localCodex === true;
+  if (provider === "platform") {
+    return state.assistantCapabilities.platformConfigured === true
+      && (state.assistantCapabilities.storageRequired !== true || state.cloudStorage === "cloud");
+  }
+  if (provider === "byok") {
+    return state.assistantCapabilities.byokSupported === true
+      && (state.assistantCapabilities.storageRequired !== true || state.cloudStorage === "cloud");
+  }
+  return false;
+}
+
+function renderProviderOptions(selected) {
+  return ["rules", "local-codex", "platform", "byok"].map((provider) => {
+    const available = providerAvailable(provider);
+    const label = available ? providerLabel(provider) : `${providerLabel(provider)} · ${t("assistantProviderUnavailable")}`;
+    return `<option value="${provider}"${selected === provider ? " selected" : ""}${available ? "" : " disabled"}>${escapeHtml(label)}</option>`;
+  }).join("");
+}
+
+function assistantStorageLabel() {
+  if (state.cloudStorage === "cloud") return t("assistantStorageCloud");
+  if (state.cloudStorage === "checking") return t("assistantStorageChecking");
+  return t("assistantStorageLocal");
+}
+
+function formatConversationDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat(state.lang === "en" ? "en-US" : "zh-CN", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function assistantWorkspaceMarkup() {
+  const provider = defaultAssistantProvider();
+  const label = deviceLabel(state.deviceIdentity?.id);
+  return `<section class="assistant-workspace" id="task-assistant" aria-labelledby="task-assistant-title">
+    <header class="assistant-workspace-header">
+      <div>
+        <p class="section-kicker">${escapeHtml(t("assistantKicker"))}</p>
+        <h3 id="task-assistant-title">${escapeHtml(t("assistantTitle"))}</h3>
+        <p>${escapeHtml(t("assistantIntro"))}</p>
+      </div>
+      <div class="assistant-identity" aria-label="${escapeHtml(t("assistantDevice", label))}">
+        <span><i aria-hidden="true"></i>${escapeHtml(t("assistantDevice", label))}</span>
+        <strong id="assistant-storage-label">${escapeHtml(assistantStorageLabel())}</strong>
+      </div>
+    </header>
+    <div class="assistant-layout">
+      <aside class="assistant-history-panel" aria-labelledby="assistant-history-title">
+        <div class="assistant-history-heading">
+          <h4 id="assistant-history-title">${escapeHtml(t("assistantHistory"))}</h4>
+          <button class="assistant-icon-button" type="button" data-assistant-new aria-label="${escapeHtml(t("assistantNewThread"))}" title="${escapeHtml(t("assistantNewThread"))}">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <div class="assistant-thread-list" id="assistant-thread-list"><p>${escapeHtml(t("assistantNoThreads"))}</p></div>
+      </aside>
+      <div class="assistant-chat-panel">
+        <div class="assistant-provider-bar">
+          <label for="assistant-provider-select"><span>${escapeHtml(t("assistantProviderLabel"))}</span>
+            <select id="assistant-provider-select">${renderProviderOptions(provider)}</select>
+          </label>
+          <button class="text-button assistant-export" id="assistant-export" type="button" hidden>${escapeHtml(t("assistantExportThread"))}</button>
+        </div>
+        <div class="assistant-byok-settings" id="assistant-byok-settings" hidden>
+          <label><span>${escapeHtml(t("assistantByokEndpoint"))}</span><input id="assistant-byok-endpoint" type="url" inputmode="url" autocomplete="url" value="${escapeHtml(state.byokConfig.baseUrl)}"></label>
+          <label><span>${escapeHtml(t("assistantByokModel"))}</span><input id="assistant-byok-model" type="text" autocomplete="off" maxlength="160" value="${escapeHtml(state.byokConfig.model)}"></label>
+          <div class="assistant-secret-label">
+            <label for="assistant-byok-key">${escapeHtml(t("assistantByokKey"))}</label>
+            <div class="assistant-secret-control">
+              <input id="assistant-byok-key" type="password" autocomplete="off" spellcheck="false" maxlength="500" value="">
+              <button type="button" data-assistant-key-toggle aria-label="${escapeHtml(t("assistantShowKey"))}" title="${escapeHtml(t("assistantShowKey"))}">
+                <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M2.5 10s2.6-4.5 7.5-4.5 7.5 4.5 7.5 4.5-2.6 4.5-7.5 4.5S2.5 10 2.5 10Z" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="10" r="2.2" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+              </button>
+            </div>
+          </div>
+          <p>${escapeHtml(t("assistantByokHelp"))}</p>
+        </div>
+        <div class="assistant-message-list" id="assistant-message-list" role="log" aria-live="polite" aria-relevant="additions text">
+          ${renderAssistantEmptyState()}
+        </div>
+        <form class="assistant-composer" id="assistant-composer">
+          <label class="visually-hidden" for="assistant-question">${escapeHtml(t("assistantComposerLabel"))}</label>
+          <textarea id="assistant-question" name="question" rows="3" maxlength="4000" placeholder="${escapeHtml(t("assistantComposerPlaceholder"))}"></textarea>
+          <div>
+            <p>${escapeHtml(t("assistantRulesNotice"))}</p>
+            <button class="button button-primary" type="submit"><span>${escapeHtml(t("assistantSend"))}</span><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m4 10 12-6-4 12-2-5-6-1Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></button>
+          </div>
+        </form>
+        <p class="assistant-status" id="assistant-status" role="status" aria-live="polite"></p>
+      </div>
+    </div>
+  </section>`;
+}
+
+function renderAssistantEmptyState() {
+  return `<div class="assistant-empty-state">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 8.5A3.5 3.5 0 0 1 9.5 5h13A3.5 3.5 0 0 1 26 8.5v9a3.5 3.5 0 0 1-3.5 3.5H15l-6.5 5v-5A3.5 3.5 0 0 1 5 17.5v-9Z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M10 11h12M10 15h8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+    <strong>${escapeHtml(t("assistantEmptyTitle"))}</strong>
+    <p>${escapeHtml(t("assistantEmptyText"))}</p>
+    <div>${["assistantSuggestionPreflight", "assistantSuggestionAi", "assistantSuggestionScope"].map((key) => `<button type="button" data-assistant-suggestion="${key}">${escapeHtml(t(key))}</button>`).join("")}</div>
+  </div>`;
+}
+
+function renderAssistantMessage(message) {
+  const assistant = message.role === "assistant";
+  const pending = message.status === "pending";
+  const failed = message.status === "failed";
+  const content = pending ? t("assistantSending") : message.content || t("assistantMessageFailed");
+  return `<article class="assistant-message assistant-message-${message.role}${pending ? " is-pending" : ""}${failed ? " is-failed" : ""}">
+    <header><strong>${escapeHtml(assistant ? t("assistantMessageAssistant") : t("assistantMessageUser"))}</strong><span>${escapeHtml(formatConversationDate(message.createdAt))}</span>${assistant && message.provider ? `<em>${escapeHtml(providerLabel(message.provider))}</em>` : ""}</header>
+    <p>${escapeHtml(content)}</p>
+  </article>`;
+}
+
+async function getTaskThreads(task) {
+  if (!state.conversationStore || !state.deviceIdentity) return [];
+  return state.conversationStore.listThreads({
+    deviceId: state.deviceIdentity.id,
+    opportunityId: task.id,
+  });
+}
+
+async function refreshAssistantWorkspace(task) {
+  const workspace = document.querySelector("#task-assistant");
+  if (!workspace || state.planTaskId !== task.id) return;
+  const threads = await getTaskThreads(task);
+  if (!threads.some((thread) => thread.id === state.activeThreadId)) state.activeThreadId = threads[0]?.id ?? "";
+  if (state.planTaskId !== task.id || !document.querySelector("#task-assistant")) return;
+  const threadList = document.querySelector("#assistant-thread-list");
+  threadList.innerHTML = threads.length
+    ? threads.map((thread) => `<div class="assistant-thread-item${thread.id === state.activeThreadId ? " is-active" : ""}">
+        <button type="button" data-assistant-thread="${escapeHtml(thread.id)}" aria-pressed="${thread.id === state.activeThreadId}">
+          <strong>${escapeHtml(thread.title || t("assistantThreadUntitled"))}</strong>
+          <span>${escapeHtml(formatConversationDate(thread.updatedAt))} · ${escapeHtml(String(thread.messageCount))}</span>
+        </button>
+        <button type="button" data-assistant-delete="${escapeHtml(thread.id)}" aria-label="${escapeHtml(t("assistantDeleteThread"))}" title="${escapeHtml(t("assistantDeleteThread"))}"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 6h12M8 3h4l1 3H7l1-3Zm-2 3 1 11h6l1-11M8.5 9v5M11.5 9v5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>`).join("")
+    : `<p>${escapeHtml(t("assistantNoThreads"))}</p>`;
+  const thread = threads.find((candidate) => candidate.id === state.activeThreadId) ?? null;
+  const messages = thread ? await state.conversationStore.listMessages(thread.id) : [];
+  if (state.planTaskId !== task.id || !document.querySelector("#assistant-message-list")) return;
+  document.querySelector("#assistant-message-list").innerHTML = messages.length
+    ? messages.map(renderAssistantMessage).join("")
+    : renderAssistantEmptyState();
+  const selectedProvider = thread?.provider ?? defaultAssistantProvider();
+  const select = document.querySelector("#assistant-provider-select");
+  select.innerHTML = renderProviderOptions(selectedProvider);
+  select.value = selectedProvider;
+  select.disabled = state.assistantBusy;
+  document.querySelector("#assistant-byok-settings").hidden = selectedProvider !== "byok";
+  document.querySelector("#assistant-export").hidden = !thread;
+  document.querySelector("#assistant-storage-label").textContent = assistantStorageLabel();
+  const submit = document.querySelector("#assistant-composer button[type='submit']");
+  const textarea = document.querySelector("#assistant-question");
+  textarea.disabled = state.assistantBusy;
+  submit.disabled = state.assistantBusy;
+  submit.querySelector("span").textContent = t(state.assistantBusy ? "assistantSending" : "assistantSend");
+  requestAnimationFrame(() => {
+    const list = document.querySelector("#assistant-message-list");
+    if (list) list.scrollTop = list.scrollHeight;
+  });
+}
+
+async function createTaskConversation(task, provider = defaultAssistantProvider()) {
+  const thread = createConversationThread({
+    deviceId: state.deviceIdentity.id,
+    task,
+    provider: providerAvailable(provider) ? provider : "rules",
+  });
+  await state.conversationStore.putThread(thread);
+  state.activeThreadId = thread.id;
+  await syncConversation(thread.id);
+  return thread;
+}
+
+async function syncConversation(threadId) {
+  if (!state.cloudHistory || !threadId) return;
+  const thread = await state.conversationStore.getThread(threadId);
+  if (!thread) return;
+  const messages = await state.conversationStore.listMessages(threadId);
+  try {
+    const result = await state.cloudHistory.syncThread(thread, messages);
+    if (result.synced) state.cloudStorage = "cloud";
+  } catch {
+    state.cloudStorage = "local";
+  }
+}
+
+async function updateConversationProvider(task, provider) {
+  if (!providerAvailable(provider)) return;
+  let thread = state.activeThreadId ? await state.conversationStore.getThread(state.activeThreadId) : null;
+  if (!thread) thread = await createTaskConversation(task, provider);
+  thread = changeConversationProvider(thread, provider);
+  await state.conversationStore.putThread(thread);
+  await syncConversation(thread.id);
+  await refreshAssistantWorkspace(task);
+}
+
+async function deleteConversation(task, threadId) {
+  if (!window.confirm(t("assistantDeleteConfirm"))) return;
+  await state.conversationStore.deleteThread(threadId);
+  try {
+    await state.cloudHistory?.deleteThread(threadId);
+  } catch {
+    state.cloudStorage = "local";
+  }
+  if (state.activeThreadId === threadId) state.activeThreadId = "";
+  await refreshAssistantWorkspace(task);
+}
+
+async function exportConversation() {
+  if (!state.activeThreadId) return;
+  const payload = await state.conversationStore.exportThread(state.activeThreadId);
+  if (!payload) return;
+  const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }));
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `aigc-opportunity-conversation-${state.activeThreadId}.json`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+async function sendAssistantMessage(task, question) {
+  if (state.assistantBusy || !question.trim()) return;
+  const selectedProvider = document.querySelector("#assistant-provider-select")?.value ?? defaultAssistantProvider();
+  const provider = providerAvailable(selectedProvider) ? selectedProvider : defaultAssistantProvider();
+  if (provider === "byok" && (!state.byokConfig.baseUrl || !state.byokConfig.model || !state.byokConfig.apiKey)) {
+    document.querySelector("#assistant-status").textContent = t("assistantByokRequired");
+    document.querySelector("#assistant-byok-key")?.focus();
+    return;
+  }
+  let thread = state.activeThreadId ? await state.conversationStore.getThread(state.activeThreadId) : null;
+  if (!thread) thread = await createTaskConversation(task, provider);
+  if (thread.provider !== provider) {
+    thread = changeConversationProvider(thread, provider);
+    await state.conversationStore.putThread(thread);
+  }
+  const userMessageCreatedAt = new Date();
+  const userMessage = createConversationMessage({
+    threadId: thread.id,
+    role: "user",
+    content: question,
+    provider,
+  }, { now: userMessageCreatedAt });
+  const assistantMessage = createConversationMessage({
+    threadId: thread.id,
+    role: "assistant",
+    content: "",
+    provider,
+    status: "pending",
+  }, { now: new Date(userMessageCreatedAt.getTime() + 1) });
+  await state.conversationStore.putMessage(userMessage);
+  await state.conversationStore.putMessage(assistantMessage);
+  state.assistantBusy = true;
+  document.querySelector("#assistant-question").value = "";
+  document.querySelector("#assistant-status").textContent = "";
+  await refreshAssistantWorkspace(task);
+  try {
+    const messages = (await state.conversationStore.listMessages(thread.id))
+      .filter((message) => message.status === "completed" || message.role === "user");
+    const result = provider === "rules"
+      ? { content: buildRuleAssistantReply(task, state.profile, question, state.lang), provider: "rules" }
+      : await callAssistant({
+          provider,
+          threadId: thread.id,
+          providerConfig: provider === "byok" ? { ...state.byokConfig } : undefined,
+          providerThreadId: thread.providerThreadId,
+          task: snapshotTask(task),
+          messages,
+          language: state.lang,
+        });
+    Object.assign(assistantMessage, {
+      content: result.content,
+      status: "completed",
+      provider,
+      model: result.model ?? null,
+      providerThreadId: result.providerThreadId ?? null,
+      usage: result.usage ?? null,
+      updatedAt: new Date().toISOString(),
+    });
+    await state.conversationStore.putMessage(assistantMessage);
+    thread = {
+      ...(await state.conversationStore.getThread(thread.id)),
+      provider,
+      model: result.model ?? thread.model,
+      providerThreadId: provider === "local-codex"
+        ? result.providerThreadId ?? thread.providerThreadId
+        : null,
+      updatedAt: assistantMessage.updatedAt,
+    };
+    await state.conversationStore.putThread(thread);
+  } catch (error) {
+    Object.assign(assistantMessage, {
+      content: t("assistantRetryHint"),
+      status: "failed",
+      errorCode: error.code || error.message || "assistant_request_failed",
+      updatedAt: new Date().toISOString(),
+    });
+    await state.conversationStore.putMessage(assistantMessage);
+  } finally {
+    state.assistantBusy = false;
+    await syncConversation(thread.id);
+    await refreshAssistantWorkspace(task);
+    document.querySelector("#assistant-question")?.focus();
+  }
+}
+
 function renderTaskPlanDialog(task) {
   const container = document.querySelector("#task-plan-content");
   const plan = buildTaskPlan(task, state.profileActive ? state.profile : normalizeProfile());
@@ -1001,14 +1439,22 @@ function renderTaskPlanDialog(task) {
         <div><pre>${escapeHtml(assistantPrompt)}</pre><button class="button button-secondary" type="button" data-copy-plan="prompt">${escapeHtml(t("copyAiPrompt"))}</button></div>
       </details>
     </div>
+    ${assistantWorkspaceMarkup()}
     <footer class="task-plan-footer">
       <a class="button button-primary" href="${escapeHtml(safeUrl(task.application_url))}" target="_blank" rel="noopener noreferrer">${escapeHtml(t("openOfficialTask"))}${externalIcon()}</a>
     </footer>`;
+  const keyInput = container.querySelector("#assistant-byok-key");
+  if (keyInput) keyInput.value = state.byokConfig.apiKey;
+  void refreshAssistantWorkspace(task);
 }
 
 function openTaskPlan(taskId, options = {}) {
   const task = state.tasks.find((candidate) => candidate.id === taskId && isActive(candidate));
   if (!task) return;
+  if (state.assistantTaskId !== task.id) {
+    state.assistantTaskId = task.id;
+    state.activeThreadId = "";
+  }
   state.planTaskId = task.id;
   renderTaskPlanDialog(task);
   const dialog = document.querySelector("#task-plan-dialog");
@@ -1119,10 +1565,66 @@ function bindEvents() {
     if (button) openTaskPlan(button.dataset.taskPlan);
   });
   document.querySelector("#task-plan-close").addEventListener("click", closeTaskPlan);
-  document.querySelector("#task-plan-dialog").addEventListener("click", (event) => {
+  document.querySelector("#task-plan-dialog").addEventListener("click", async (event) => {
     if (event.target === event.currentTarget) closeTaskPlan();
     const copyButton = event.target.closest("[data-copy-plan]");
     if (copyButton) copyPlanText(copyButton.dataset.copyPlan);
+    const task = state.tasks.find((candidate) => candidate.id === state.planTaskId);
+    if (!task) return;
+    if (event.target.closest("[data-assistant-new]")) {
+      await createTaskConversation(task);
+      await refreshAssistantWorkspace(task);
+      document.querySelector("#assistant-question")?.focus();
+      return;
+    }
+    const threadButton = event.target.closest("[data-assistant-thread]");
+    if (threadButton) {
+      state.activeThreadId = threadButton.dataset.assistantThread;
+      await refreshAssistantWorkspace(task);
+      return;
+    }
+    const deleteButton = event.target.closest("[data-assistant-delete]");
+    if (deleteButton) {
+      await deleteConversation(task, deleteButton.dataset.assistantDelete);
+      return;
+    }
+    if (event.target.closest("#assistant-export")) {
+      await exportConversation();
+      return;
+    }
+    const keyToggle = event.target.closest("[data-assistant-key-toggle]");
+    if (keyToggle) {
+      const input = document.querySelector("#assistant-byok-key");
+      const show = input?.type === "password";
+      if (input) input.type = show ? "text" : "password";
+      const label = t(show ? "assistantHideKey" : "assistantShowKey");
+      keyToggle.setAttribute("aria-label", label);
+      keyToggle.setAttribute("title", label);
+      return;
+    }
+    const suggestion = event.target.closest("[data-assistant-suggestion]");
+    if (suggestion) {
+      const textarea = document.querySelector("#assistant-question");
+      textarea.value = t(suggestion.dataset.assistantSuggestion);
+      textarea.focus();
+    }
+  });
+  document.querySelector("#task-plan-dialog").addEventListener("submit", async (event) => {
+    if (!event.target.matches("#assistant-composer")) return;
+    event.preventDefault();
+    const task = state.tasks.find((candidate) => candidate.id === state.planTaskId);
+    const question = document.querySelector("#assistant-question")?.value ?? "";
+    if (task) await sendAssistantMessage(task, question);
+  });
+  document.querySelector("#task-plan-dialog").addEventListener("change", async (event) => {
+    if (!event.target.matches("#assistant-provider-select")) return;
+    const task = state.tasks.find((candidate) => candidate.id === state.planTaskId);
+    if (task) await updateConversationProvider(task, event.target.value);
+  });
+  document.querySelector("#task-plan-dialog").addEventListener("input", (event) => {
+    if (event.target.matches("#assistant-byok-endpoint")) state.byokConfig.baseUrl = event.target.value.trim();
+    if (event.target.matches("#assistant-byok-model")) state.byokConfig.model = event.target.value.trim();
+    if (event.target.matches("#assistant-byok-key")) state.byokConfig.apiKey = event.target.value;
   });
   document.querySelector("#task-plan-dialog").addEventListener("close", () => {
     state.planTaskId = "";
@@ -1207,6 +1709,48 @@ async function loadDirectory() {
   state.sources = sources.filter((source) => source && source.id && source.platform_id);
 }
 
+async function initializeConversationServices() {
+  const device = getOrCreateDeviceIdentity(window.localStorage);
+  state.deviceIdentity = device.identity;
+  state.devicePersistent = device.persistent;
+  state.conversationStore = await openConversationStore(window);
+  state.cloudHistory = new CloudHistoryClient();
+  const [cloudStatus, capabilities] = await Promise.all([
+    state.cloudHistory.bootstrap(state.deviceIdentity.id),
+    loadAssistantCapabilities(),
+  ]);
+  state.cloudStorage = cloudStatus.configured ? "cloud" : "local";
+  state.assistantCapabilities = capabilities;
+  if (cloudStatus.configured) {
+    try {
+      const remote = await state.cloudHistory.loadHistory();
+      const messagesByThread = remote.messages.reduce((groups, message) => {
+        const messages = groups.get(message.threadId) ?? [];
+        messages.push(message);
+        groups.set(message.threadId, messages);
+        return groups;
+      }, new Map());
+      for (const remoteThread of remote.threads) {
+        const localThread = await state.conversationStore.getThread(remoteThread.id);
+        if (!localThread || remoteThread.updatedAt >= localThread.updatedAt) {
+          await state.conversationStore.putThread(remoteThread);
+        }
+        const localMessages = new Map(
+          (await state.conversationStore.listMessages(remoteThread.id)).map((message) => [message.id, message]),
+        );
+        for (const remoteMessage of messagesByThread.get(remoteThread.id) ?? []) {
+          const localMessage = localMessages.get(remoteMessage.id);
+          if (!localMessage || remoteMessage.updatedAt >= localMessage.updatedAt) {
+            await state.conversationStore.putMessage(remoteMessage);
+          }
+        }
+      }
+    } catch {
+      state.cloudStorage = "local";
+    }
+  }
+}
+
 async function init() {
   readInitialState();
   const storedTheme = window.localStorage.getItem("opportunity-theme");
@@ -1217,6 +1761,7 @@ async function init() {
   syncControls();
   document.querySelector("#current-year").textContent = String(new Date().getFullYear());
   try {
+    await initializeConversationServices();
     await loadDirectory();
     render();
     if (state.planTaskId) openTaskPlan(state.planTaskId, { updateUrl: false });

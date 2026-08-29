@@ -18,9 +18,9 @@ The profile is stored under `opportunity-profile-v1` in browser `localStorage`. 
 
 The public site is currently a zero-build static deployment. Putting a model API key in browser JavaScript would expose it, while asking every visitor for a key would turn AI into a barrier. The deterministic matcher provides immediate value, stays auditable, and establishes the UI and data contracts needed by a later conversational layer.
 
-## Optional model-backed follow-up
+## Model-backed follow-up
 
-A later release can add a server-side `/api/assistant` endpoint with:
+Phase three now adds a server-side `/api/assistant` endpoint with:
 
 - the selected public task ID;
 - an explicit subset of profile preferences approved by the user;
@@ -28,7 +28,7 @@ A later release can add a server-side `/api/assistant` endpoint with:
 - citations back to task fields and official URLs;
 - output warnings whenever reward, acceptance, deadline, or AI-use rules are unknown.
 
-The client must continue to work without this endpoint. Model output should extend the deterministic checklist, not replace official rules or claim a probability of winning a reward.
+The client continues to work without this endpoint. Model output extends the deterministic checklist; it does not replace official rules or claim a probability of winning a reward. See [Phase 3: device sessions and saved conversations](phase-3-device-conversations.md) for local Codex, hosted AI, user-supplied API, storage, and anonymous-device details.
 
 ## Verification
 
