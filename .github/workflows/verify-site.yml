@@ -1,0 +1,60 @@
+name: Verify site
+
+on:
+  push:
+    branches: [main, "codex/**"]
+    paths:
+      - ".github/workflows/verify-site.yml"
+      - "assets/**"
+      - "api/**"
+      - "data/**"
+      - "docs/**"
+      - "lib/**"
+      - "scripts/**"
+      - "supabase/**"
+      - "tasks/**"
+      - "index.html"
+      - "package.json"
+      - "package-lock.json"
+      - "README.md"
+  pull_request:
+    paths:
+      - ".github/workflows/verify-site.yml"
+      - "assets/**"
+      - "api/**"
+      - "data/**"
+      - "docs/**"
+      - "lib/**"
+      - "scripts/**"
+      - "supabase/**"
+      - "tasks/**"
+      - "index.html"
+      - "package.json"
+      - "package-lock.json"
+      - "README.md"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-site-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run all tests
+        run: npm test
+      - name: Validate contest snapshot
+        run: node scripts/sync-upstream.mjs --check
+      - name: Validate task snapshot
+        run: node scripts/sync-task-data.mjs --check

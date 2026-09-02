@@ -39,7 +39,6 @@
           <a class="nav-link" href="/" data-i18n="navContests">比赛机会</a>
           <a class="nav-link is-active" href="/tasks/" aria-current="page">
             <span data-i18n="navTasks">任务平台</span>
-            <span class="nav-badge" data-i18n="beta">首批上线</span>
           </a>
         </nav>
 
@@ -68,13 +67,12 @@
           <h1 id="task-hero-title" data-i18n-html="heroTitle">找到值得做的任务，<em>先看清回报和规则。</em></h1>
           <p class="hero-lede" data-i18n="heroLede">聚合公开、可核验的赏金任务，同时展示报酬是否明确、可见竞争度、来源可信信号和 AI 使用边界。</p>
           <div class="hero-actions">
-            <a class="button button-primary" href="#task-directory">
-              <span data-i18n="browseTasks">浏览实时任务</span>
+            <a class="button button-primary" href="#opportunity-matcher">
+              <span data-i18n="startMatching">开始个性匹配</span>
               <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7 4 6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </a>
-            <a class="button button-secondary" href="/tasks/feed.xml">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="18" r="1.5" fill="currentColor"/><path d="M5 11a8 8 0 0 1 8 8M5 5a14 14 0 0 1 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-              <span data-i18n="subscribeRss">订阅 RSS</span>
+            <a class="button button-secondary" href="#task-directory">
+              <span data-i18n="browseTasks">直接浏览任务</span>
             </a>
           </div>
           <ul class="trust-list" aria-label="任务目录原则" data-i18n-aria-label="trustListLabel">
@@ -102,13 +100,122 @@
         </aside>
       </section>
 
+      <section class="matching-workspace section" id="opportunity-matcher" aria-labelledby="matcher-title">
+        <div class="matcher-layout">
+          <div class="matcher-intro">
+            <div class="matcher-icon" aria-hidden="true">
+              <svg viewBox="0 0 32 32"><path d="M16 3 5 8v8c0 6 3.8 10.4 11 13 7.2-2.6 11-7 11-13V8L16 3Z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10 16.5 14 20l8-9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <p class="section-kicker" data-i18n="matcherKicker">Phase two · Opportunity matcher</p>
+            <h2 id="matcher-title" data-i18n="matcherTitle">不是替你接任务，而是先帮你避坑、排优先级</h2>
+            <p data-i18n="matcherText">用你的强项、时间和目标计算可解释的匹配度，再为每条任务生成开工确认、执行和提交清单。你不建立画像也能继续浏览全部任务。</p>
+            <div class="matcher-principles" role="note">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.6 2.5 7.7 7 9.7 4.5-2 7-5.1 7-9.7V6l-7-3Z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M9.5 12.2 11.2 14l3.8-4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <div><strong data-i18n="matcherPrivacyTitle">画像只保存在当前浏览器</strong><span data-i18n="matcherPrivacyText">不需要注册，不会上传个人资料；匹配度只是任务适配信号，不是获奖或付款概率。</span></div>
+            </div>
+          </div>
+
+          <form class="matcher-profile-card" id="matcher-profile-form" novalidate>
+            <div class="matcher-card-heading">
+              <div>
+                <span data-i18n="profileStep">你的机会画像</span>
+                <h3 data-i18n="profileTitle">告诉雷达你擅长什么</h3>
+              </div>
+              <span class="local-only-badge" data-i18n="localOnly">仅本地</span>
+            </div>
+
+            <fieldset class="profile-strengths">
+              <legend data-i18n="strengthLegend">主要强项（可多选）</legend>
+              <p class="field-helper" id="strength-helper" data-i18n="strengthHelper">不确定时可以先选一项，之后随时修改。</p>
+              <div class="profile-chip-list" id="profile-category-chips" aria-describedby="strength-helper">
+                <button class="profile-chip" type="button" data-profile-category="development" aria-pressed="false" data-i18n="categoryDevelopment">开发</button>
+                <button class="profile-chip" type="button" data-profile-category="ai-automation" aria-pressed="false" data-i18n="categoryAi">AI / 自动化</button>
+                <button class="profile-chip" type="button" data-profile-category="writing" aria-pressed="false" data-i18n="categoryWriting">内容写作</button>
+                <button class="profile-chip" type="button" data-profile-category="video" aria-pressed="false" data-i18n="categoryVideo">视频</button>
+                <button class="profile-chip" type="button" data-profile-category="design" aria-pressed="false" data-i18n="categoryDesign">设计</button>
+                <button class="profile-chip" type="button" data-profile-category="data" aria-pressed="false" data-i18n="categoryData">数据</button>
+                <button class="profile-chip" type="button" data-profile-category="research" aria-pressed="false" data-i18n="categoryResearch">调研</button>
+                <button class="profile-chip" type="button" data-profile-category="testing" aria-pressed="false" data-i18n="categoryTesting">测试</button>
+              </div>
+            </fieldset>
+
+            <div class="profile-field-grid">
+              <label class="select-field">
+                <span data-i18n="weeklyHoursLabel">每周可投入时间</span>
+                <select id="profile-weekly-hours" name="weeklyHours">
+                  <option value="2" data-i18n="weeklyHours2">约 2 小时</option>
+                  <option value="5" selected data-i18n="weeklyHours5">约 5 小时</option>
+                  <option value="10" data-i18n="weeklyHours10">约 10 小时</option>
+                  <option value="20" data-i18n="weeklyHours20">20 小时以上</option>
+                </select>
+              </label>
+              <label class="select-field">
+                <span data-i18n="goalLabel">当前优先目标</span>
+                <select id="profile-goal" name="goal">
+                  <option value="balanced" selected data-i18n="goalBalanced">综合判断</option>
+                  <option value="reward" data-i18n="goalReward">优先明确报酬</option>
+                  <option value="lower-competition" data-i18n="goalCompetition">优先较低竞争</option>
+                </select>
+              </label>
+            </div>
+
+            <details class="profile-advanced" id="profile-advanced">
+              <summary><span data-i18n="advancedPreferences">更多匹配偏好</span><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+              <div class="profile-advanced-body">
+                <label class="profile-text-field" for="profile-skill-keywords">
+                  <span data-i18n="skillKeywordsLabel">技能关键词</span>
+                  <input id="profile-skill-keywords" name="skillKeywords" type="text" maxlength="160" autocomplete="off" placeholder="例如 TypeScript、AWS、技术写作" data-i18n-placeholder="skillKeywordsPlaceholder" aria-describedby="skill-keywords-helper">
+                  <small id="skill-keywords-helper" data-i18n="skillKeywordsHelper">用逗号分隔；只用于当前浏览器中的匹配。</small>
+                </label>
+                <div class="profile-field-grid profile-field-grid-advanced">
+                  <label class="select-field">
+                    <span data-i18n="rewardPreferenceLabel">报酬偏好</span>
+                    <select id="profile-reward-preference" name="rewardPreference">
+                      <option value="any" selected data-i18n="rewardPreferenceAny">不影响匹配</option>
+                      <option value="priced" data-i18n="rewardPreferencePriced">优先已标价</option>
+                    </select>
+                  </label>
+                  <label class="select-field">
+                    <span data-i18n="competitionToleranceLabel">竞争接受度</span>
+                    <select id="profile-competition-tolerance" name="competitionTolerance">
+                      <option value="low" data-i18n="competitionToleranceLow">只接受较低</option>
+                      <option value="medium" selected data-i18n="competitionToleranceMedium">接受中等</option>
+                      <option value="high" data-i18n="competitionToleranceHigh">可接受较高</option>
+                    </select>
+                  </label>
+                  <label class="select-field">
+                    <span data-i18n="aiPreferenceLabel">AI 辅助偏好</span>
+                    <select id="profile-ai-preference" name="aiPreference">
+                      <option value="any" selected data-i18n="aiPreferenceAny">不影响匹配</option>
+                      <option value="clear" data-i18n="aiPreferenceClear">优先规则明确</option>
+                      <option value="human-only" data-i18n="aiPreferenceHuman">优先本人完成</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+            </details>
+
+            <div class="matcher-form-actions">
+              <button class="button button-primary" type="submit">
+                <span data-i18n="applyProfile">开始匹配任务</span>
+                <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7 4 6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <button class="text-button matcher-reset" id="matcher-profile-reset" type="button" hidden data-i18n="resetProfile">清除画像</button>
+            </div>
+            <div class="profile-feedback" id="profile-feedback" role="status" aria-live="polite" aria-atomic="true">
+              <span data-i18n="profileNotSaved">尚未建立画像，任务仍会正常显示。</span>
+            </div>
+          </form>
+        </div>
+      </section>
+
       <section class="directory-section section task-directory-section" id="task-directory" aria-labelledby="task-directory-title">
         <div class="section-heading">
           <div>
             <p class="section-kicker" data-i18n="directoryKicker">Live task directory</p>
             <h2 id="task-directory-title" data-i18n="directoryTitle">先判断值不值得做</h2>
           </div>
-          <p class="section-intro" data-i18n="directoryIntro">第一阶段先接入精选 GitHub 公开赏金。排序和信号用于辅助判断，不代表平台承诺或成功概率。</p>
+          <p class="section-intro" data-i18n="directoryIntro">公开任务继续完整展示；建立本地画像后，会额外显示匹配理由、风险和可执行行动方案。</p>
         </div>
 
         <div class="task-phase-note" role="note">
@@ -171,6 +278,7 @@
               <span data-i18n="sortLabel">排序方式</span>
               <select id="task-sort-select">
                 <option value="updated" data-i18n="sortUpdated">最近活动</option>
+                <option value="match" id="task-sort-match" data-i18n="sortMatch" disabled>最适合我</option>
                 <option value="reward" data-i18n="sortReward">报酬从高到低</option>
                 <option value="competition" data-i18n="sortCompetition">竞争度从低到高</option>
               </select>
@@ -222,18 +330,6 @@
         </div>
       </section>
 
-      <section class="assistant-preview section" aria-labelledby="assistant-preview-title">
-        <div class="assistant-preview-icon" aria-hidden="true">
-          <svg viewBox="0 0 32 32"><path d="M16 3 5 8v8c0 6 3.8 10.4 11 13 7.2-2.6 11-7 11-13V8L16 3Z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M11 16h10M16 11v10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-        </div>
-        <div>
-          <p class="section-kicker" data-i18n="assistantKicker">Phase two</p>
-          <h2 id="assistant-preview-title" data-i18n="assistantTitle">私人任务助理会加入，但不会成为门槛</h2>
-          <p data-i18n="assistantText">后续对话能力将基于真实任务数据，按你的能力和时间做匹配、拆解要求与提交前检查。你也可以完全不使用它，只订阅任务资讯。</p>
-        </div>
-        <span class="assistant-preview-status" data-i18n="assistantStatus">规划中 · 可选使用</span>
-      </section>
-
       <section class="subscription-strip" aria-labelledby="task-subscribe-title">
         <div>
           <p class="section-kicker" data-i18n="subscribeKicker">Stay in the loop</p>
@@ -252,6 +348,19 @@
         </div>
       </section>
     </main>
+
+    <dialog class="task-plan-dialog" id="task-plan-dialog" aria-labelledby="task-plan-title">
+      <div class="task-plan-shell">
+        <div class="task-plan-topbar">
+          <span data-i18n="planAssistantLabel">任务助理 · 对话默认保存</span>
+          <button class="dialog-close" id="task-plan-close" type="button" aria-label="关闭行动方案" data-i18n-aria-label="closePlan">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <div id="task-plan-content"></div>
+      </div>
+    </dialog>
+    <p class="visually-hidden" id="task-copy-status" role="status" aria-live="polite" aria-atomic="true"></p>
 
     <footer class="site-footer">
       <div class="footer-inner">

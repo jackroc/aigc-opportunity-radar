@@ -1,0 +1,17 @@
+{
+  "name": "aigc-opportunity-radar",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/dev-server.mjs",
+    "test": "node --test scripts/*.test.mjs",
+    "verify": "npm test && node scripts/sync-upstream.mjs --check && node scripts/sync-task-data.mjs --check"
+  },
+  "dependencies": {
+    "@openai/codex-sdk": "0.150.1"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
