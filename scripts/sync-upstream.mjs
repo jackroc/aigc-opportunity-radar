@@ -8,12 +8,30 @@ const DEFAULT_UPSTREAM_BASE =
   "https://raw.githubusercontent.com/MartinDelophy/Awesome-AIGC-Creative-Contests/main";
 const UPSTREAM_BASE = (process.env.UPSTREAM_BASE_URL || DEFAULT_UPSTREAM_BASE).replace(/\/$/, "");
 
-const RESOURCES = Object.freeze([
+const CORE_RESOURCES = Object.freeze([
   { source: "data/schema.json", target: "data/schema.json", kind: "json" },
   { source: "data/contests.json", target: "data/contests.json", kind: "json" },
   { source: "feed.xml", target: "feed.xml", kind: "feed" },
   { source: "deadlines.ics", target: "deadlines.ics", kind: "calendar" },
 ]);
+const OPPORTUNITY_METADATA_RESOURCES = Object.freeze([
+  {
+    source: "data/opportunities/manifest.json",
+    target: "data/opportunities/manifest.json",
+    kind: "json",
+  },
+  {
+    source: "data/opportunities/manifest.schema.json",
+    target: "data/opportunities/manifest.schema.json",
+    kind: "json",
+  },
+  {
+    source: "data/opportunities/schema.json",
+    target: "data/opportunities/schema.json",
+    kind: "json",
+  },
+]);
+const OPPORTUNITY_SELECTION_TARGET = "data/opportunity-selection.json";
 
 const SUPPORTED_SCHEMA_KEYS = new Set([
   "$schema",
@@ -31,6 +49,8 @@ const SUPPORTED_SCHEMA_KEYS = new Set([
   "uniqueItems",
   "enum",
   "format",
+  "const",
+  "minimum",
 ]);
 
 function isObject(value) {
@@ -99,6 +119,10 @@ function validateValue(schema, value, location, errors) {
     return;
   }
 
+  if (Object.hasOwn(schema, "const") && !Object.is(schema.const, value)) {
+    errors.push(`${location} must equal ${JSON.stringify(schema.const)}`);
+  }
+
   if (schema.enum && !schema.enum.some((candidate) => Object.is(candidate, value))) {
     errors.push(`${location} must be one of: ${schema.enum.join(", ")}`);
   }
@@ -116,6 +140,10 @@ function validateValue(schema, value, location, errors) {
     if (schema.format === "uri" && !isUri(value)) {
       errors.push(`${location} must be a valid URI`);
     }
+  }
+
+  if (typeof value === "number" && schema.minimum !== undefined && value < schema.minimum) {
+    errors.push(`${location} must be at least ${schema.minimum}`);
   }
 
   if (Array.isArray(value)) {
@@ -149,13 +177,14 @@ function validateValue(schema, value, location, errors) {
   }
 }
 
-export function validateContestData(schema, contests) {
+export function validateContestData(schema, contests, options = {}) {
+  const { allowEmpty = false, label = "Contest data" } = options;
   assertSupportedSchema(schema);
   const errors = [];
   validateValue(schema, contests, "$", errors);
 
   if (Array.isArray(contests)) {
-    if (contests.length === 0) errors.push("$ must not be an empty contest directory");
+    if (!allowEmpty && contests.length === 0) errors.push("$ must not be an empty contest directory");
 
     const ids = contests.map((contest) => contest?.id).filter(Boolean);
     const duplicateIds = [...new Set(ids.filter((id, index) => ids.indexOf(id) !== index))];
@@ -166,7 +195,7 @@ export function validateContestData(schema, contests) {
     const displayed = errors.slice(0, 25);
     const remainder = errors.length - displayed.length;
     const suffix = remainder > 0 ? `\n...and ${remainder} more validation error(s)` : "";
-    throw new Error(`Contest data validation failed:\n- ${displayed.join("\n- ")}${suffix}`);
+    throw new Error(`${label} validation failed:\n- ${displayed.join("\n- ")}${suffix}`);
   }
 
   return contests.length;
@@ -198,18 +227,131 @@ function parseJson(text, label) {
   }
 }
 
+export function validateOpportunitySelection(selection) {
+  if (!isObject(selection) || Object.keys(selection).length !== 1 || !Array.isArray(selection.dataset_ids)) {
+    throw new Error("data/opportunity-selection.json must contain only a dataset_ids array");
+  }
+  if (selection.dataset_ids.length === 0) {
+    throw new Error("data/opportunity-selection.json must opt into at least one dataset");
+  }
+  if (selection.dataset_ids.some((id) => typeof id !== "string" || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id))) {
+    throw new Error("data/opportunity-selection.json contains an invalid dataset id");
+  }
+  if (new Set(selection.dataset_ids).size !== selection.dataset_ids.length) {
+    throw new Error("data/opportunity-selection.json contains duplicate dataset ids");
+  }
+  return selection.dataset_ids;
+}
+
+export function validateOpportunityManifest(schema, manifest) {
+  assertSupportedSchema(schema);
+  const errors = [];
+  validateValue(schema, manifest, "$", errors);
+  if (errors.length > 0) {
+    throw new Error(`Opportunity manifest validation failed:\n- ${errors.slice(0, 25).join("\n- ")}`);
+  }
+
+  const datasets = new Map();
+  for (const dataset of manifest.datasets) {
+    if (path.posix.basename(dataset.path) !== dataset.path || !dataset.path.endsWith(".json")) {
+      throw new Error(`Opportunity dataset ${dataset.id} has an unsafe path: ${dataset.path}`);
+    }
+    if (dataset.default_included !== false) {
+      throw new Error(`Opportunity dataset ${dataset.id} must remain opt-in`);
+    }
+    if (datasets.has(dataset.id)) throw new Error(`Duplicate opportunity dataset id: ${dataset.id}`);
+    datasets.set(dataset.id, dataset);
+  }
+  return datasets;
+}
+
+function resourceMap(resources) {
+  return new Map(resources.map((resource) => [resource.target, resource.content]));
+}
+
+function selectedShardResources(resources) {
+  const byTarget = resourceMap(resources);
+  const manifestSchema = parseJson(
+    byTarget.get("data/opportunities/manifest.schema.json"),
+    "data/opportunities/manifest.schema.json",
+  );
+  const manifest = parseJson(
+    byTarget.get("data/opportunities/manifest.json"),
+    "data/opportunities/manifest.json",
+  );
+  const selection = parseJson(
+    byTarget.get(OPPORTUNITY_SELECTION_TARGET),
+    OPPORTUNITY_SELECTION_TARGET,
+  );
+  const datasets = validateOpportunityManifest(manifestSchema, manifest);
+  const selectedIds = validateOpportunitySelection(selection);
+  return selectedIds.map((id) => {
+    const dataset = datasets.get(id);
+    if (!dataset) throw new Error(`Selected opportunity dataset does not exist upstream: ${id}`);
+    return {
+      source: `data/opportunities/${dataset.path}`,
+      target: `data/opportunities/${dataset.path}`,
+      kind: "opportunity-shard",
+      dataset,
+    };
+  });
+}
+
+function normalizedOfficialUrl(value) {
+  return new URL(value).href.replace(/\/$/, "");
+}
+
+export function validateCrossDatasetUniqueness(coreContests, optionalContests) {
+  const ids = new Set(coreContests.map((contest) => contest.id));
+  const urls = new Set(coreContests.map((contest) => normalizedOfficialUrl(contest.official_url)));
+  for (const contest of optionalContests) {
+    if (ids.has(contest.id)) throw new Error(`Duplicate contest id across core and opt-in data: ${contest.id}`);
+    ids.add(contest.id);
+    const url = normalizedOfficialUrl(contest.official_url);
+    if (urls.has(url)) throw new Error(`Duplicate official_url across core and opt-in data: ${url}`);
+    urls.add(url);
+  }
+}
+
 function validateResources(resources) {
-  const byTarget = new Map(resources.map((resource) => [resource.target, resource.content]));
+  const byTarget = resourceMap(resources);
   const schema = parseJson(byTarget.get("data/schema.json"), "data/schema.json");
   const contests = parseJson(byTarget.get("data/contests.json"), "data/contests.json");
-  const count = validateContestData(schema, contests);
+  const coreCount = validateContestData(schema, contests);
+
+  const opportunitySchema = parseJson(
+    byTarget.get("data/opportunities/schema.json"),
+    "data/opportunities/schema.json",
+  );
+  const shardResources = selectedShardResources(resources);
+  const optionalContests = [];
+  for (const resource of shardResources) {
+    const records = parseJson(byTarget.get(resource.target), resource.target);
+    validateContestData(opportunitySchema, records, {
+      allowEmpty: true,
+      label: `Opportunity dataset ${resource.dataset.id}`,
+    });
+    if (records.length !== resource.dataset.record_count) {
+      throw new Error(
+        `Opportunity dataset ${resource.dataset.id} expected ${resource.dataset.record_count} records but received ${records.length}`,
+      );
+    }
+    optionalContests.push(...records);
+  }
+  validateCrossDatasetUniqueness(contests, optionalContests);
   validateFeed(byTarget.get("feed.xml"));
   validateCalendar(byTarget.get("deadlines.ics"));
-  return count;
+  return { coreCount, optionalCount: optionalContests.length, shardCount: shardResources.length };
 }
 
 async function fetchText(source, attempts = 3) {
   const url = `${UPSTREAM_BASE}/${source}`;
+  const parsedUrl = new URL(url);
+  if (parsedUrl.protocol === "file:") {
+    const content = await readFile(fileURLToPath(parsedUrl), "utf8");
+    if (content.trim().length === 0) throw new Error(`${url} was empty`);
+    return content.endsWith("\n") ? content : `${content}\n`;
+  }
   let lastError;
 
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
@@ -232,27 +374,56 @@ async function fetchText(source, attempts = 3) {
 }
 
 async function loadLocalResources() {
-  return Promise.all(
-    RESOURCES.map(async (resource) => ({
+  const baseResources = [
+    ...CORE_RESOURCES,
+    ...OPPORTUNITY_METADATA_RESOURCES,
+    { target: OPPORTUNITY_SELECTION_TARGET, kind: "selection", managed: false },
+  ];
+  const loaded = await Promise.all(
+    baseResources.map(async (resource) => ({
       ...resource,
       content: await readFile(path.join(REPOSITORY_ROOT, resource.target), "utf8"),
     })),
   );
+  const shards = selectedShardResources(loaded);
+  const loadedShards = await Promise.all(
+    shards.map(async (resource) => ({
+      ...resource,
+      content: await readFile(path.join(REPOSITORY_ROOT, resource.target), "utf8"),
+    })),
+  );
+  return [...loaded, ...loadedShards];
 }
 
 async function loadUpstreamResources() {
-  return Promise.all(
-    RESOURCES.map(async (resource) => ({
+  const fetched = await Promise.all(
+    [...CORE_RESOURCES, ...OPPORTUNITY_METADATA_RESOURCES].map(async (resource) => ({
       ...resource,
       content: await fetchText(resource.source),
     })),
   );
+  const selection = {
+    target: OPPORTUNITY_SELECTION_TARGET,
+    kind: "selection",
+    managed: false,
+    content: await readFile(path.join(REPOSITORY_ROOT, OPPORTUNITY_SELECTION_TARGET), "utf8"),
+  };
+  const baseResources = [...fetched, selection];
+  const shards = selectedShardResources(baseResources);
+  const fetchedShards = await Promise.all(
+    shards.map(async (resource) => ({
+      ...resource,
+      content: await fetchText(resource.source),
+    })),
+  );
+  return [...baseResources, ...fetchedShards];
 }
 
 async function writeChangedResources(resources) {
   const changed = [];
 
   for (const resource of resources) {
+    if (resource.managed === false) continue;
     const targetPath = path.join(REPOSITORY_ROOT, resource.target);
     let current = null;
     try {
@@ -284,18 +455,26 @@ async function main() {
   }
 
   const resources = mode === "--check" ? await loadLocalResources() : await loadUpstreamResources();
-  const count = validateResources(resources);
+  const counts = validateResources(resources);
 
   if (mode === "--check") {
-    console.log(`Validated ${count} contests and the local subscription files.`);
+    console.log(
+      `Validated ${counts.coreCount} core contests and ${counts.optionalCount} opt-in opportunities ` +
+      `from ${counts.shardCount} selected shards, plus the local subscription files.`,
+    );
     return;
   }
 
   const changed = await writeChangedResources(resources);
   if (changed.length === 0) {
-    console.log(`Upstream is unchanged; ${count} contests validated.`);
+    console.log(
+      `Upstream is unchanged; ${counts.coreCount} core contests and ${counts.optionalCount} opt-in opportunities validated.`,
+    );
   } else {
-    console.log(`Validated ${count} contests and updated: ${changed.join(", ")}`);
+    console.log(
+      `Validated ${counts.coreCount} core contests and ${counts.optionalCount} opt-in opportunities; ` +
+      `updated: ${changed.join(", ")}`,
+    );
   }
 }
 

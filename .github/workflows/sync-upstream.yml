@@ -65,7 +65,7 @@ jobs:
       - name: Detect changes
         id: changes
         run: |
-          if git diff --quiet -- data/contests.json data/schema.json feed.xml deadlines.ics; then
+          if git diff --quiet -- data/contests.json data/schema.json data/opportunities feed.xml deadlines.ics; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
@@ -75,6 +75,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/contests.json data/schema.json feed.xml deadlines.ics
+          git add data/contests.json data/schema.json data/opportunities feed.xml deadlines.ics
           git commit -m "chore(data): sync upstream contest directory"
           git push origin HEAD:main

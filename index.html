@@ -65,7 +65,7 @@
               <span data-i18n="heroEyebrow">持续核验 · 最近更新优先</span>
             </p>
             <h1 id="hero-title" data-i18n-html="heroTitle">把时间留给创作，<em>把机会交给雷达。</em></h1>
-            <p class="hero-lede" data-i18n="heroLede">聚合仍可报名或已官宣的 AIGC 创作比赛，快速看清截止日期、参赛门槛和官方入口。</p>
+            <p class="hero-lede" data-i18n="heroLede">聚合 AIGC 核心赛事，并按需加载已核验的扩展机会，快速看清截止日期、参赛门槛和官方入口。</p>
             <div class="hero-actions">
               <a class="button button-primary" href="#directory">
                 <span data-i18n="browseContests">浏览比赛</span>
@@ -98,7 +98,7 @@
               <p class="radar-total"><strong id="hero-total">—</strong><span data-i18n="activeOpportunities">项有效机会</span></p>
               <div class="radar-metrics">
                 <div><span data-i18n="urgentLabel">7 天内截止</span><strong id="hero-urgent">—</strong></div>
-                <div><span data-i18n="categoryLabel">创作类别</span><strong id="hero-categories">—</strong></div>
+                <div><span data-i18n="categoryLabel">机会类别</span><strong id="hero-categories">—</strong></div>
                 <div><span data-i18n="verifiedLabel">最近核验</span><strong id="hero-verified">—</strong></div>
               </div>
             </div>
@@ -128,7 +128,7 @@
           </div>
 
           <fieldset class="category-filter">
-            <legend data-i18n="categoryFilterLabel">创作类别</legend>
+            <legend data-i18n="categoryFilterLabel">机会类别</legend>
             <div class="chip-list" id="category-chips">
               <button class="filter-chip is-active" type="button" data-category="all" aria-pressed="true" data-i18n="categoryAll">全部</button>
               <button class="filter-chip" type="button" data-category="video" aria-pressed="false" data-i18n="categoryVideo">视频</button>
@@ -136,6 +136,11 @@
               <button class="filter-chip" type="button" data-category="audio" aria-pressed="false" data-i18n="categoryAudio">音频</button>
               <button class="filter-chip" type="button" data-category="text" aria-pressed="false" data-i18n="categoryText">文字</button>
               <button class="filter-chip" type="button" data-category="app" aria-pressed="false" data-i18n="categoryApp">应用</button>
+              <button class="filter-chip" type="button" data-category="code" aria-pressed="false" data-i18n="categoryCode">编程</button>
+              <button class="filter-chip" type="button" data-category="research" aria-pressed="false" data-i18n="categoryResearch">科研</button>
+              <button class="filter-chip" type="button" data-category="hardware" aria-pressed="false" data-i18n="categoryHardware">硬件</button>
+              <button class="filter-chip" type="button" data-category="business" aria-pressed="false" data-i18n="categoryBusiness">商业</button>
+              <button class="filter-chip" type="button" data-category="other" aria-pressed="false" data-i18n="categoryOther">其他</button>
             </div>
           </fieldset>
 
@@ -204,7 +209,7 @@
         <div>
           <p class="section-kicker" data-i18n="subscribeKicker">Stay in the loop</p>
           <h2 id="subscribe-title" data-i18n="subscribeTitle">让机会主动找到你</h2>
-          <p data-i18n="subscribeText">通过 RSS 或日历订阅，第一时间获取目录更新与截止日期。</p>
+          <p data-i18n="subscribeText">通过 RSS 或日历订阅 AIGC 核心清单；扩展机会目前在网页中按需加载。</p>
         </div>
         <div class="subscription-actions">
           <a class="button button-light" href="feed.xml">
