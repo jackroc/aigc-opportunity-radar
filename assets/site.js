@@ -1,6 +1,13 @@
 const DIRECTORY_SOURCES = Object.freeze({
-  contests: {
+  core: {
     url: "./data/contests.json",
+  },
+  selection: {
+    url: "./data/opportunity-selection.json",
+  },
+  manifest: {
+    url: "./data/opportunities/manifest.json",
+    baseUrl: "./data/opportunities/",
   },
 });
 
@@ -16,7 +23,7 @@ const translations = {
     navTasks: "任务平台",
     heroEyebrow: "持续核验 · 最近更新优先",
     heroTitle: "把时间留给创作，<em>把机会交给雷达。</em>",
-    heroLede: "聚合仍可报名或已官宣的 AIGC 创作比赛，快速看清截止日期、参赛门槛和官方入口。",
+    heroLede: "聚合 AIGC 核心赛事，并按需加载已核验的扩展机会，快速看清截止日期、参赛门槛和官方入口。",
     browseContests: "浏览比赛",
     viewSource: "查看开源项目",
     trustLabel: "目录特点",
@@ -26,7 +33,7 @@ const translations = {
     radarNow: "当前雷达",
     activeOpportunities: "项有效机会",
     urgentLabel: "7 天内截止",
-    categoryLabel: "创作类别",
+    categoryLabel: "机会类别",
     verifiedLabel: "最近核验",
     directoryKicker: "Opportunity directory",
     directoryTitle: "正在发生的创作机会",
@@ -35,13 +42,21 @@ const translations = {
     searchLabel: "搜索比赛",
     searchPlaceholder: "搜索名称、主办方、地区或资格",
     clearSearch: "清空搜索",
-    categoryFilterLabel: "创作类别",
+    categoryFilterLabel: "机会类别",
     categoryAll: "全部",
     categoryVideo: "视频",
     categoryImage: "图像",
     categoryAudio: "音频",
     categoryText: "文字",
     categoryApp: "应用",
+    categoryCode: "编程",
+    categoryResearch: "科研",
+    categoryHardware: "硬件",
+    categoryBusiness: "商业",
+    categoryOther: "其他",
+    scopeAiCompatible: "AI 可辅助",
+    scopeGeneral: "扩展机会",
+    scopeAigcNative: "AIGC 原生",
     statusFilterLabel: "报名状态",
     statusAll: "全部状态",
     statusOpen: "报名中",
@@ -65,7 +80,7 @@ const translations = {
     viewFullList: "查看完整清单",
     subscribeKicker: "Stay in the loop",
     subscribeTitle: "让机会主动找到你",
-    subscribeText: "通过 RSS 或日历订阅，第一时间获取目录更新与截止日期。",
+    subscribeText: "通过 RSS 或日历订阅 AIGC 核心清单；扩展机会目前在网页中按需加载。",
     subscribeRss: "订阅 RSS",
     subscribeCalendar: "添加到日历",
     footerTagline: "开放、可核验、持续更新",
@@ -102,7 +117,7 @@ const translations = {
     navTasks: "Task platforms",
     heroEyebrow: "Continuously verified · Latest updates first",
     heroTitle: "Keep your time for making. <em>Let the radar find the openings.</em>",
-    heroLede: "A focused directory of open and officially announced AIGC creative contests, with deadlines, eligibility, and official links in one place.",
+    heroLede: "A focused AIGC directory with explicitly selected, verified extension datasets—deadlines, eligibility, and official links in one place.",
     browseContests: "Browse contests",
     viewSource: "View open-source project",
     trustLabel: "Directory principles",
@@ -121,13 +136,21 @@ const translations = {
     searchLabel: "Search contests",
     searchPlaceholder: "Search title, organizer, region, or eligibility",
     clearSearch: "Clear search",
-    categoryFilterLabel: "Creative category",
+    categoryFilterLabel: "Opportunity category",
     categoryAll: "All",
     categoryVideo: "Video",
     categoryImage: "Image",
     categoryAudio: "Audio",
     categoryText: "Writing",
     categoryApp: "Apps",
+    categoryCode: "Code",
+    categoryResearch: "Research",
+    categoryHardware: "Hardware",
+    categoryBusiness: "Business",
+    categoryOther: "Other",
+    scopeAiCompatible: "AI-compatible",
+    scopeGeneral: "Extended opportunity",
+    scopeAigcNative: "AIGC-native",
     statusFilterLabel: "Entry status",
     statusAll: "All statuses",
     statusOpen: "Open",
@@ -151,7 +174,7 @@ const translations = {
     viewFullList: "View full directory",
     subscribeKicker: "Stay in the loop",
     subscribeTitle: "Let opportunities find you",
-    subscribeText: "Subscribe by RSS or calendar to follow directory updates and deadlines.",
+    subscribeText: "RSS and calendar follow the core AIGC directory; selected extensions are currently available on the website.",
     subscribeRss: "Subscribe via RSS",
     subscribeCalendar: "Add to calendar",
     footerTagline: "Open, verifiable, continuously updated",
@@ -179,7 +202,18 @@ const translations = {
   },
 };
 
-const validCategories = new Set(["video", "image", "audio", "text", "app"]);
+const validCategories = new Set([
+  "video",
+  "image",
+  "audio",
+  "text",
+  "app",
+  "code",
+  "research",
+  "hardware",
+  "business",
+  "other",
+]);
 const validStatuses = new Set(["all", "open", "urgent", "upcoming"]);
 const validFees = new Set(["all", "free", "paid", "unknown"]);
 const validSorts = new Set(["verified", "deadline", "opening"]);
@@ -235,8 +269,9 @@ function normalizeSearch(value) {
   return String(value ?? "").normalize("NFKC").trim().toLocaleLowerCase();
 }
 
-function classifyFee(contest) {
+export function classifyFee(contest) {
   const value = normalizeSearch(`${contest.fee} ${contest.en?.fee ?? ""}`);
+  if (/未注明|未列|待确认|not stated|not listed|not specified|to confirm|unknown/.test(value)) return "unknown";
   if (/收费|\bpaid\b|usd|cny|hkd|krw|\$|€|£|¥/.test(value)) return "paid";
   if (/免费|\bfree\b/.test(value)) return "free";
   return "unknown";
@@ -291,6 +326,8 @@ function matchesSearch(contest, query) {
     contest.en?.eligibility,
     contest.en?.prize,
     contest.en?.fee,
+    ...(Array.isArray(contest.industries) ? contest.industries : []),
+    ...(Array.isArray(contest.audiences) ? contest.audiences : []),
   ];
   return normalizeSearch(fields.join(" ")).includes(query);
 }
@@ -346,8 +383,22 @@ function categoryLabel(category) {
     audio: "categoryAudio",
     text: "categoryText",
     app: "categoryApp",
+    code: "categoryCode",
+    research: "categoryResearch",
+    hardware: "categoryHardware",
+    business: "categoryBusiness",
+    other: "categoryOther",
   };
   return t(keys[category] ?? category);
+}
+
+function scopeLabel(scope) {
+  const keys = {
+    "aigc-native": "scopeAigcNative",
+    "ai-compatible": "scopeAiCompatible",
+    general: "scopeGeneral",
+  };
+  return t(keys[scope] ?? "scopeGeneral");
 }
 
 function feeLabel(feeClass) {
@@ -370,6 +421,9 @@ function renderCard(source) {
     .filter((category) => validCategories.has(category))
     .map((category) => `<span class="category-badge">${escapeHtml(categoryLabel(category))}</span>`)
     .join("");
+  const scope = source.__dataset
+    ? `<span class="scope-badge">${escapeHtml(scopeLabel(source.scope))}</span>`
+    : "";
 
   return `
     <article class="contest-card" data-status="${status.key}">
@@ -382,6 +436,7 @@ function renderCard(source) {
         <h3>${title}</h3>
         <p class="organizer">${escapeHtml(t("organizer"))} · ${escapeHtml(contest.organizer)}</p>
         <div class="card-tags">
+          ${scope}
           ${categories}
           <span class="fee-badge">${escapeHtml(feeLabel(feeClass))}</span>
         </div>
@@ -602,14 +657,70 @@ function showLoadError() {
   document.querySelector("#results-count").textContent = t("errorTitle");
 }
 
-async function loadContests() {
-  const response = await fetch(DIRECTORY_SOURCES.contests.url, { cache: "no-store" });
+async function fetchJson(url) {
+  const response = await fetch(url, { cache: "no-store" });
   if (!response.ok) throw new Error(`Contest data request failed with ${response.status}`);
-  const payload = await response.json();
+  return response.json();
+}
+
+export function safeDatasetPath(value) {
+  return typeof value === "string" && /^[a-z0-9]+(?:-[a-z0-9]+)*\.json$/.test(value);
+}
+
+export function resolveOpportunityDatasets(selection, manifest) {
+  if (!Array.isArray(selection?.dataset_ids) || !Array.isArray(manifest?.datasets)) {
+    throw new TypeError("Opportunity selection and manifest must contain arrays");
+  }
+  if (selection.dataset_ids.length !== new Set(selection.dataset_ids).size) {
+    throw new TypeError("Opportunity selection must not contain duplicate dataset ids");
+  }
+  const datasets = new Map(manifest.datasets.map((dataset) => [dataset.id, dataset]));
+  return selection.dataset_ids.map((id) => {
+    const dataset = datasets.get(id);
+    if (!dataset || dataset.default_included !== false || !safeDatasetPath(dataset.path)) {
+      throw new TypeError(`Invalid selected opportunity dataset: ${id}`);
+    }
+    return dataset;
+  });
+}
+
+async function loadSelectedOpportunities() {
+  const [selection, manifest] = await Promise.all([
+    fetchJson(DIRECTORY_SOURCES.selection.url),
+    fetchJson(DIRECTORY_SOURCES.manifest.url),
+  ]);
+  const selected = resolveOpportunityDatasets(selection, manifest);
+  const shards = await Promise.all(
+    selected.map(async (dataset) => {
+      const records = await fetchJson(`${DIRECTORY_SOURCES.manifest.baseUrl}${dataset.path}`);
+      if (!Array.isArray(records) || records.length !== dataset.record_count) {
+        throw new TypeError(`Opportunity dataset count mismatch: ${dataset.id}`);
+      }
+      return records.map((record) => ({ ...record, __dataset: dataset.id }));
+    }),
+  );
+  return shards.flat();
+}
+
+async function loadContests() {
+  const payload = await fetchJson(DIRECTORY_SOURCES.core.url);
   if (!Array.isArray(payload)) throw new TypeError("Contest data must be an array");
 
-  state.contests = payload
+  let optional = [];
+  try {
+    optional = await loadSelectedOpportunities();
+  } catch (error) {
+    console.warn("Opt-in opportunity data could not be loaded; showing the core directory only.", error);
+  }
+
+  const ids = new Set();
+  state.contests = [...payload, ...optional]
     .filter((contest) => contest && contest.id && contest.title && contest.deadline && contest.verified_on && contest.en)
+    .filter((contest) => {
+      if (ids.has(contest.id)) return false;
+      ids.add(contest.id);
+      return true;
+    })
     .map((contest, index) => ({ ...contest, __index: index }));
 }
 

@@ -22,7 +22,9 @@ Contest data originates from [Awesome AIGC Creative Contests](https://github.com
 
 ## Data synchronization
 
-The `Sync upstream contest data` GitHub Actions workflow checks the upstream repository every 15 minutes. It validates `data/contests.json` against the upstream schema and mirrors the contest data, RSS feed, and calendar only when their contents change. Invalid or unavailable upstream responses fail safely without replacing the checked-in snapshot.
+The `Sync upstream contest data` GitHub Actions workflow checks the upstream repository every 15 minutes. It keeps `data/contests.json`, its original schema, RSS, and calendar as a separate core mirror. It also reads the upstream opt-in manifest and mirrors only the shards named in [`data/opportunity-selection.json`](data/opportunity-selection.json), validating each against the independent extension schema. Invalid or unavailable responses fail safely without replacing the checked-in snapshot.
+
+This deployment currently opts into `global`, `cn-national`, and `cn-local`. A deployment serving a different audience can remove irrelevant IDs from the selection file without changing the upstream project or downloading those shards. The website combines the selected records at runtime and labels them as extensions; if extension loading fails, it still displays the core directory. The root RSS and calendar intentionally remain core-only for upstream compatibility.
 
 The workflow can also be run manually from the repository's **Actions** tab. Each successful data change is committed to `main`, giving the site a versioned snapshot that can be audited or rolled back.
 
