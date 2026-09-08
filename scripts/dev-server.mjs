@@ -22,6 +22,7 @@ const contentTypes = new Map([
   [".js", "text/javascript; charset=utf-8"],
   [".mjs", "text/javascript; charset=utf-8"],
   [".json", "application/json; charset=utf-8"],
+  [".txt", "text/plain; charset=utf-8"],
   [".svg", "image/svg+xml"],
   [".png", "image/png"],
   [".xml", "application/xml; charset=utf-8"],
@@ -135,6 +136,7 @@ function staticPath(pathname) {
   const decoded = decodeURIComponent(pathname);
   const route = decoded === "/" ? "/index.html" : decoded.endsWith("/") ? `${decoded}index.html` : decoded;
   const allowed = route === "/index.html"
+    || route === "/ads.txt"
     || route === "/feed.xml"
     || route === "/deadlines.ics"
     || route.startsWith("/assets/")

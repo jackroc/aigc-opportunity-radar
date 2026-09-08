@@ -57,6 +57,14 @@ Normal releases only require a push to `main`; Vercel deploys that commit automa
 
 The site still deploys without backend variables. To enable cloud conversation history and hosted AI, apply the Supabase migration and configure the server-only Vercel variables described in the [phase-three deployment guide](docs/phase-3-device-conversations.md#hosted-setup-on-vercel).
 
+### Google AdSense
+
+Both `/` and `/tasks/` include the asynchronous AdSense script in their HTML `<head>` for publisher `ca-pub-9565558700858500`. The root [`ads.txt`](ads.txt) authorizes the same publisher. Include the same script in the `<head>` of any future page intended to display ads.
+
+After deploying, confirm that both page sources contain the script and that [the root ads.txt URL](https://aigccreative.com/ads.txt) serves the publisher record, following any redirect to `www`. In AdSense, select **I have placed the code**, click **Verify**, then **Request review** for `aigccreative.com`. See [Google's site connection guide](https://support.google.com/adsense/answer/7584263?hl=en) and [ads.txt guide](https://support.google.com/adsense/answer/12171612?hl=en).
+
+Ads require site approval and ad configuration in AdSense. For automatic placement, enable Auto ads in the AdSense dashboard; this repository does not define manual ad units.
+
 ## License
 
 [MIT](LICENSE)
