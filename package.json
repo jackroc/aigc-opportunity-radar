@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build": "node scripts/build-site.mjs",
+    "predev": "npm run build",
     "dev": "node scripts/dev-server.mjs",
     "test": "node --test scripts/*.test.mjs",
     "verify": "npm test && node scripts/sync-upstream.mjs --check && node scripts/sync-task-data.mjs --check"

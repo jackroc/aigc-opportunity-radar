@@ -3743,3 +3743,38 @@ body:has(.task-plan-dialog[open]) {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Editorial content shares the catalogue's colors, spacing and theme. */
+[hidden] { display: none !important; }
+.guide-band { margin-block: 48px 64px; }
+.guide-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.guide-card { display: flex; flex-direction: column; padding: 26px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); transition: border-color 180ms; }
+.guide-card:hover { border-color: var(--color-primary); }
+.guide-card h3 { margin: 12px 0; font-size: 21px; line-height: 1.5; }
+.guide-card p { margin: 0 0 22px; color: var(--color-muted-strong); }
+.guide-read { margin-top: auto; font-weight: 700; color: var(--color-primary); }
+.editorial-note { margin-top: 24px; padding: 20px 24px; border-left: 3px solid var(--color-primary); background: var(--color-primary-soft); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; color: var(--color-muted-strong); line-height: 1.85; }
+.reading { width: min(calc(100% - 40px), 780px); margin: 64px auto 88px; overflow-wrap: anywhere; }
+.reading h1, .guide-index h1 { margin: 12px 0 20px; font-size: clamp(30px, 4vw, 46px); line-height: 1.35; letter-spacing: -0.025em; }
+.reading h2 { margin: 0 0 16px; font-size: 25px; line-height: 1.5; }
+.reading section { margin-top: 44px; scroll-margin-top: 144px; }
+.reading p { line-height: 1.95; }
+.reading-intro { font-size: 18px; color: var(--color-muted-strong); line-height: 1.85; }
+.reading-meta { color: var(--color-muted); font-size: 14px; margin-bottom: 30px; }
+.reading-toc { padding: 22px 26px; margin-block: 28px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.reading-toc ol { margin: 0; padding-left: 24px; }
+.reading-toc li + li, .reading-links li + li { margin-top: 10px; }
+.reading a { color: var(--color-primary); text-decoration: underline; text-underline-offset: 4px; }
+.reading-links { padding-top: 28px; border-top: 1px solid var(--color-border); }
+.guide-index { margin-block: 64px 88px; min-height: 55vh; }
+.guide-index .guide-grid { margin-top: 32px; }
+.editorial-header > .language-button { flex-shrink: 0; }
+@media (max-width: 760px) {
+  .guide-grid { grid-template-columns: 1fr; }
+  .guide-card { padding: 22px; }
+  .reading, .guide-index { margin-block: 36px 60px; }
+  .reading h2 { font-size: 22px; }
+  .reading-intro { font-size: 17px; }
+  .reading-toc { padding: 20px; }
+  .editorial-header { flex-wrap: wrap; }
+}

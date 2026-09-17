@@ -20,6 +20,11 @@ const translations = {
     brandTagline: "Creative Opportunity Radar",
     primaryNavLabel: "主要导航",
     navContests: "比赛机会",
+    navGuides: "参赛指南",
+    navAbout: "关于与收录方法",
+    navPrivacy: "隐私政策",
+    navContact: "联系与纠错",
+    refreshFailed: "实时刷新暂不可用，当前显示上次发布的数据。请以官方规则为准。",
     navTasks: "任务平台",
     heroEyebrow: "持续核验 · 最近更新优先",
     heroTitle: "把时间留给创作，<em>把机会交给雷达。</em>",
@@ -114,6 +119,11 @@ const translations = {
     brandTagline: "Creative Opportunity Radar",
     primaryNavLabel: "Primary navigation",
     navContests: "Contests",
+    navGuides: "Participation guides",
+    navAbout: "About & methodology",
+    navPrivacy: "Privacy",
+    navContact: "Contact & corrections",
+    refreshFailed: "Live refresh is unavailable. Showing the last published data; check the official rules.",
     navTasks: "Task platforms",
     heroEyebrow: "Continuously verified · Latest updates first",
     heroTitle: "Keep your time for making. <em>Let the radar find the openings.</em>",
@@ -487,6 +497,12 @@ function applyTranslations() {
   const languageButton = document.querySelector("#language-toggle");
   languageButton.textContent = state.lang === "zh" ? "EN" : "中";
   languageButton.setAttribute("aria-label", t("switchEnglish"));
+  document.querySelectorAll('[data-editorial-language]').forEach((section) => {
+    section.hidden = section.dataset.editorialLanguage !== state.lang;
+  });
+  document.querySelectorAll('[data-content-path]').forEach((link) => {
+    link.href = `${state.lang === 'en' ? '/en' : ''}/${link.dataset.contentPath}/`;
+  });
   updateThemeButton();
 }
 
@@ -651,6 +667,11 @@ function bindEvents() {
 function showLoadError() {
   const grid = document.querySelector("#contest-grid");
   grid.setAttribute("aria-busy", "false");
+  if (state.contests.length) {
+    render();
+    document.querySelector("#results-count").textContent += " · " + t("refreshFailed");
+    return;
+  }
   grid.hidden = true;
   document.querySelector("#empty-state").hidden = true;
   document.querySelector("#error-state").hidden = false;
@@ -734,6 +755,10 @@ async function init() {
   syncControls();
   document.querySelector("#current-year").textContent = String(new Date().getFullYear());
 
+  const embedded = document.querySelector('#initial-contests');
+  if (embedded) {
+    try { state.contests = JSON.parse(embedded.textContent); render(); } catch { /* Keep the published HTML if data is damaged. */ }
+  }
   try {
     await loadContests();
     render();
@@ -745,4 +770,22 @@ async function init() {
 
 if (typeof document !== "undefined") {
   init();
+}
+
+// The published HTML and the interactive catalogue use the same filtering and
+// card renderer. Building pages never changes the upstream source records.
+export function renderContestSnapshot(contests, { lang = 'zh', today = new Date() } = {}) {
+  const previous = { ...state };
+  try {
+    Object.assign(state, { contests, lang, today: startOfDay(today), query: '', category: 'all', status: 'all', fee: 'all', sort: 'verified' });
+    const active = filterAndSortContests(contests);
+    const latest = active.reduce((value, contest) => contest.verified_on > value ? contest.verified_on : value, '');
+    return {
+      cards: active.map(renderCard).join(''), count: active.length,
+      urgent: active.filter((contest) => getContestStatus(contest).key === 'urgent').length,
+      categories: new Set(active.flatMap((contest) => contest.categories)).size,
+      latest: latest ? formatDate(latest, { withYear: false }) : '—',
+      result: t('resultSummary', active.length, active.length),
+    };
+  } finally { Object.assign(state, previous); }
 }

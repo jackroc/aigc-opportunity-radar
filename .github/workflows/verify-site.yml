@@ -14,6 +14,7 @@ on:
       - "supabase/**"
       - "tasks/**"
       - "index.html"
+      - "vercel.json"
       - "package.json"
       - "package-lock.json"
       - "README.md"
@@ -29,6 +30,7 @@ on:
       - "supabase/**"
       - "tasks/**"
       - "index.html"
+      - "vercel.json"
       - "package.json"
       - "package-lock.json"
       - "README.md"
@@ -58,3 +60,5 @@ jobs:
         run: node scripts/sync-upstream.mjs --check
       - name: Validate task snapshot
         run: node scripts/sync-task-data.mjs --check
+      - name: Build published HTML
+        run: npm run build

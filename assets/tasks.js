@@ -32,6 +32,11 @@ const translations = {
     brandTagline: "Creative Opportunity Radar",
     primaryNavLabel: "主要导航",
     navContests: "比赛机会",
+    navGuides: "参赛指南",
+    navAbout: "关于与收录方法",
+    navPrivacy: "隐私政策",
+    navContact: "联系与纠错",
+    refreshFailed: "实时刷新暂不可用，当前显示上次发布的数据。请在开工前确认任务仍有效。",
     navTasks: "任务平台",
     heroEyebrow: "公开来源 · 每 15 分钟自动检查",
     heroTitle: "找到值得做的任务，<em>先看清回报和规则。</em>",
@@ -292,6 +297,11 @@ const translations = {
     brandTagline: "Creative Opportunity Radar",
     primaryNavLabel: "Primary navigation",
     navContests: "Contests",
+    navGuides: "Participation guides",
+    navAbout: "About & methodology",
+    navPrivacy: "Privacy",
+    navContact: "Contact & corrections",
+    refreshFailed: "Live refresh is unavailable. Showing the last published data; confirm availability before starting.",
     navTasks: "Task platforms",
     heroEyebrow: "Public sources · checked every 15 minutes",
     heroTitle: "Find work worth doing. <em>See the reward and rules first.</em>",
@@ -896,6 +906,12 @@ function applyTranslations() {
   const languageButton = document.querySelector("#language-toggle");
   languageButton.textContent = state.lang === "zh" ? "EN" : "中";
   languageButton.setAttribute("aria-label", t("switchEnglish"));
+  document.querySelectorAll('[data-editorial-language]').forEach((section) => {
+    section.hidden = section.dataset.editorialLanguage !== state.lang;
+  });
+  document.querySelectorAll('[data-content-path]').forEach((link) => {
+    link.href = `${state.lang === 'en' ? '/en' : ''}/${link.dataset.contentPath}/`;
+  });
   updateThemeButton();
 }
 
@@ -1680,6 +1696,11 @@ function showLoadError(error) {
   console.error(error);
   const grid = document.querySelector("#task-grid");
   grid.setAttribute("aria-busy", "false");
+  if (state.tasks.length || state.platforms.length) {
+    render();
+    document.querySelector("#task-results-count").textContent += " · " + t("refreshFailed");
+    return;
+  }
   grid.hidden = true;
   document.querySelector("#task-empty-state").hidden = true;
   document.querySelector("#task-error-state").hidden = false;
@@ -1760,8 +1781,13 @@ async function init() {
   bindEvents();
   syncControls();
   document.querySelector("#current-year").textContent = String(new Date().getFullYear());
+  const embedded = document.querySelector('#initial-tasks');
+  if (embedded) {
+    try { Object.assign(state, JSON.parse(embedded.textContent)); render(); } catch { /* Keep published HTML. */ }
+  }
+  // Optional assistant initialization must not prevent access to public tasks.
+  try { await initializeConversationServices(); } catch (error) { console.warn('Assistant storage unavailable', error); }
   try {
-    await initializeConversationServices();
     await loadDirectory();
     render();
     if (state.planTaskId) openTaskPlan(state.planTaskId, { updateUrl: false });
@@ -1771,3 +1797,15 @@ async function init() {
 }
 
 if (typeof document !== "undefined") init();
+
+export function renderTaskSnapshot({ tasks, platforms, sources }, { lang = 'zh', now = new Date() } = {}) {
+  const previous = { ...state };
+  try {
+    Object.assign(state, { tasks, platforms, sources, lang, now, query: '', category: 'all', reward: 'all', ai: 'all', competition: 'all', sort: 'updated', profileActive: false });
+    const active = filterAndSortTasks();
+    const latest = active.reduce((value, task) => task.source_updated_at > value ? task.source_updated_at : value, '');
+    return { cards: active.map(renderTaskCard).join(''), platforms: platforms.map(renderPlatformCard).join(''), count: active.length,
+      priced: active.filter((task) => Number.isFinite(task.reward?.amount_min)).length, sources: sources.length,
+      latest: latest ? formatDate(latest, { withYear: false }) : '—', result: t('resultSummary', active.length, active.length) };
+  } finally { Object.assign(state, previous); }
+}

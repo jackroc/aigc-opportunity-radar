@@ -9,6 +9,7 @@ import { Codex } from "@openai/codex-sdk";
 import { allowedProviderUrl, buildCodexPrompt, callResponsesProvider, sanitizeAssistantMessages } from "../lib/assistant-core.mjs";
 
 const projectRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
+const staticRoot = join(projectRoot, "public");
 const assistantWorkspace = join(tmpdir(), "aigc-opportunity-radar-assistant");
 const port = Number(process.env.RADAR_DEV_PORT || 8000);
 const host = "127.0.0.1";
@@ -137,14 +138,17 @@ function staticPath(pathname) {
   const route = decoded === "/" ? "/index.html" : decoded.endsWith("/") ? `${decoded}index.html` : decoded;
   const allowed = route === "/index.html"
     || route === "/ads.txt"
+    || route === "/robots.txt"
+    || route === "/sitemap.xml"
+    || /^\/(?:en\/)?(?:guides|about|privacy|contact)\//.test(route)
     || route === "/feed.xml"
     || route === "/deadlines.ics"
     || route.startsWith("/assets/")
     || route.startsWith("/data/")
     || route.startsWith("/tasks/");
   if (!allowed || route.includes("..")) return null;
-  const filePath = normalize(join(projectRoot, route));
-  return filePath.startsWith(projectRoot) ? filePath : null;
+  const filePath = normalize(join(staticRoot, route));
+  return filePath.startsWith(staticRoot + "/") ? filePath : null;
 }
 
 const server = createServer(async (request, response) => {

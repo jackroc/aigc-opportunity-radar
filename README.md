@@ -1,6 +1,6 @@
 # AIGC Opportunity Radar
 
-A standalone, zero-build website for discovering AIGC creative contests and public bounty tasks.
+A standalone website with build-time HTML snapshots for discovering AIGC creative contests and public bounty tasks.
 
 ## Features
 
@@ -24,7 +24,7 @@ Contest data originates from [Awesome AIGC Creative Contests](https://github.com
 
 The `Sync upstream contest data` GitHub Actions workflow checks the upstream repository every 15 minutes. It keeps `data/contests.json`, its original schema, RSS, and calendar as a separate core mirror. It also reads the upstream opt-in manifest and mirrors only the shards named in [`data/opportunity-selection.json`](data/opportunity-selection.json), validating each against the independent extension schema. Invalid or unavailable responses fail safely without replacing the checked-in snapshot.
 
-This deployment currently opts into `global`, `cn-national`, and `cn-local`. A deployment serving a different audience can remove irrelevant IDs from the selection file without changing the upstream project or downloading those shards. The website combines the selected records at runtime and labels them as extensions; if extension loading fails, it still displays the core directory. The root RSS and calendar intentionally remain core-only for upstream compatibility.
+This deployment currently opts into `global`, `cn-national`, and `cn-local`. A deployment serving a different audience can remove irrelevant IDs from the selection file without changing the upstream project or downloading those shards. The build publishes the selected records as readable HTML; the browser then refreshes the same selection and labels them as extensions; if extension loading fails, it still displays the core directory. The root RSS and calendar intentionally remain core-only for upstream compatibility.
 
 The workflow can also be run manually from the repository's **Actions** tab. Each successful data change is committed to `main`, giving the site a versioned snapshot that can be audited or rolled back.
 
@@ -37,7 +37,7 @@ npm install
 npm run dev
 ```
 
-Open <http://127.0.0.1:8000/>. This preview also enables **My local Codex** through the current computer's Codex login. For a static-only preview, `python3 -m http.server 8000` still works; the conversation UI then falls back to its rule-based provider.
+Open <http://127.0.0.1:8000/>. This preview also enables **My local Codex** through the current computer's Codex login. The preview first builds `public/`. For a static-only preview, run `npm run build` and `python3 -m http.server 8000 --directory public`; the conversation UI then falls back to its rule-based provider.
 
 The default `/` route shows contest opportunities. The live task directory lives on the separate `/tasks/` route.
 
@@ -45,6 +45,7 @@ Useful checks:
 
 ```bash
 npm run verify
+npm run build
 ```
 
 The opportunity profile remains browser-local and does not require an account or model API. Phase three stores conversations in IndexedDB and can mirror them to Supabase behind a signed anonymous device session. It uses a random device ID, not browser fingerprinting. See [Phase 2: Opportunity assistant](docs/phase-2-opportunity-assistant.md) and [Phase 3: device sessions and saved conversations](docs/phase-3-device-conversations.md).
@@ -59,11 +60,15 @@ The site still deploys without backend variables. To enable cloud conversation h
 
 ### Google AdSense
 
-Both `/` and `/tasks/` include the asynchronous AdSense script in their HTML `<head>` for publisher `ca-pub-9565558700858500`. The root [`ads.txt`](ads.txt) authorizes the same publisher. Include the same script in the `<head>` of any future page intended to display ads.
+All published pages retain the publisher verification meta tag for `ca-pub-9565558700858500`. The root [`ads.txt`](ads.txt) authorizes the same publisher. Ad-delivery scripts are intentionally not loaded in this release. Google supports the meta tag as a site connection method; see [Google's site connection guide](https://support.google.com/adsense/answer/7584263?hl=en).
 
-After deploying, confirm that both page sources contain the script and that [the root ads.txt URL](https://aigccreative.com/ads.txt) serves the publisher record, following any redirect to `www`. In AdSense, select **I have placed the code**, click **Verify**, then **Request review** for `aigccreative.com`. See [Google's site connection guide](https://support.google.com/adsense/answer/7584263?hl=en) and [ads.txt guide](https://support.google.com/adsense/answer/12171612?hl=en).
+Verify the live page source and [ads.txt](https://aigccreative.com/ads.txt) before requesting review. Original content and usability improvements support site readiness but do not guarantee approval. Configure ads and applicable consent controls only after reviewing the intended placement and updating the privacy notice for actual data practices.
 
-Ads require site approval and ad configuration in AdSense. For automatic placement, enable Auto ads in the AdSense dashboard; this repository does not define manual ad units.
+### Published content
+
+`npm run build` creates `public/` from the current data snapshot and shared card renderers. Vercel uses that directory for static assets; existing root `api/` functions remain server endpoints. Every successful data-sync commit rebuilds the published directory. Search, language and filters enhance the initial HTML; a failed refresh retains the last published records.
+
+`lib/editorial.mjs` holds three original participation guides plus About, Privacy and Contact in Chinese and English. Their revision date changes when the text changes, not on every data sync. `/guides/` and `/en/guides/` link to them. The build also emits `robots.txt` and `sitemap.xml`. Generated output is not committed; edit source templates and run the build.
 
 ## License
 
