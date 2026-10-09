@@ -65,7 +65,7 @@ test('a build publishes complete HTML, bilingual guides and a limited static out
     assert.deepEqual(embedded, await loadContestRecords());
     assert.equal(new Set(embedded.map((x) => x.id)).size, embedded.length);
     const sitemap = await readFile(join(output, 'sitemap.xml'), 'utf8');
-    const slugs = ['guides', ...GUIDES.map((guide) => `guides/${guide.slug}`), ...Object.keys(INFORMATION)];
+    const slugs = ['planner', 'guides', ...GUIDES.map((guide) => `guides/${guide.slug}`), ...Object.keys(INFORMATION)];
     for (const lang of ['zh', 'en']) for (const slug of slugs) {
       const path = contentPath(slug, lang);
       const page = await readFile(join(output, path, 'index.html'), 'utf8');
@@ -75,7 +75,11 @@ test('a build publishes complete HTML, bilingual guides and a limited static out
       assert.ok(page.includes(`rel="canonical" href="https://www.aigccreative.com${path}"`));
       assert.doesNotMatch(page, /adsbygoogle\.js/);
     }
-    assert.equal((sitemap.match(/<url>/g) || []).length, 16);
+    assert.equal((sitemap.match(/<url>/g) || []).length, 2 + slugs.length * 2);
+    assert.equal(await readFile(join(output, 'ads.txt'), 'utf8'), await readFile(new URL('../ads.txt', import.meta.url), 'utf8'));
+    const planner = await readFile(join(output, 'planner/index.html'), 'utf8');
+    assert.match(planner, /planner-data/);
+    assert.match(planner, /participation.js/);
     assert.match(await readFile(join(output, 'robots.txt'), 'utf8'), /Sitemap: https:\/\/www.aigccreative.com\/sitemap.xml/);
     for (const privatePath of ['lib', 'api', '.git', 'scripts', 'package.json']) await assert.rejects(access(join(output, privatePath)));
   } finally { await rm(output, { recursive: true, force: true }); }

@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { platformAiConfig, utcDayStart } from "../lib/server/ai-runs.mjs";
+import tasks from "../data/tasks.json" with { type: "json" };
+import { sanitizeTaskContext } from "../lib/assistant-core.mjs";
 import { getCanonicalTaskSnapshot } from "../lib/server/task-catalog.mjs";
 
 test("platform AI requires an explicit enable flag and has a bounded daily limit", () => {
@@ -16,11 +18,11 @@ test("platform AI requires an explicit enable flag and has a bounded daily limit
 });
 
 test("hosted conversations use canonical task snapshots from the checked-in directory", () => {
-  const snapshot = getCanonicalTaskSnapshot("github-tscircuit-jlcsearch-92");
-  assert.equal(snapshot.id, "github-tscircuit-jlcsearch-92");
-  assert.equal(snapshot.aiPolicy, "unknown");
-  assert.match(snapshot.applicationUrl, /^https:\/\/github\.com\//);
+  const source = tasks.find(task => task.platform_id === "github-bounties");
+  assert.ok(source, "the public directory includes a GitHub task");
+  const snapshot = getCanonicalTaskSnapshot(source.id);
+  assert.deepEqual(snapshot, sanitizeTaskContext(source));
   snapshot.title = "mutated";
-  assert.notEqual(getCanonicalTaskSnapshot("github-tscircuit-jlcsearch-92").title, "mutated");
+  assert.notEqual(getCanonicalTaskSnapshot(source.id).title, "mutated");
   assert.equal(getCanonicalTaskSnapshot("not-in-the-directory"), null);
 });

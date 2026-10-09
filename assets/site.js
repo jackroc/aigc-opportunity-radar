@@ -1,3 +1,5 @@
+import { verificationAge } from './participation-core.mjs';
+
 const DIRECTORY_SOURCES = Object.freeze({
   core: {
     url: "./data/contests.json",
@@ -21,12 +23,15 @@ const translations = {
     primaryNavLabel: "主要导航",
     navContests: "比赛机会",
     navGuides: "参赛指南",
+    navPlanner: "参赛准备",
+    prepareEntry: "准备参赛",
+    staleSource: "资料核验已超过 30 天，请重新确认官方规则。",
     navAbout: "关于与收录方法",
     navPrivacy: "隐私政策",
     navContact: "联系与纠错",
     refreshFailed: "实时刷新暂不可用，当前显示上次发布的数据。请以官方规则为准。",
     navTasks: "任务平台",
-    heroEyebrow: "持续核验 · 最近更新优先",
+    heroEyebrow: "来源日期透明 · 自动同步目录",
     heroTitle: "把时间留给创作，<em>把机会交给雷达。</em>",
     heroLede: "聚合 AIGC 核心赛事，并按需加载已核验的扩展机会，快速看清截止日期、参赛门槛和官方入口。",
     browseContests: "浏览比赛",
@@ -120,12 +125,15 @@ const translations = {
     primaryNavLabel: "Primary navigation",
     navContests: "Contests",
     navGuides: "Participation guides",
+    navPlanner: "Planner",
+    prepareEntry: "Prepare an entry",
+    staleSource: "Source verification is over 30 days old. Recheck the official rules.",
     navAbout: "About & methodology",
     navPrivacy: "Privacy",
     navContact: "Contact & corrections",
     refreshFailed: "Live refresh is unavailable. Showing the last published data; check the official rules.",
     navTasks: "Task platforms",
-    heroEyebrow: "Continuously verified · Latest updates first",
+    heroEyebrow: "Transparent source dates · Automatically synced",
     heroTitle: "Keep your time for making. <em>Let the radar find the openings.</em>",
     heroLede: "A focused AIGC directory with explicitly selected, verified extension datasets—deadlines, eligibility, and official links in one place.",
     browseContests: "Browse contests",
@@ -465,6 +473,7 @@ function renderCard(source) {
             <strong>${escapeHtml(contest.prize)}</strong>
           </div>
         </div>
+        ${verificationAge(source.verified_on, `${state.today.getFullYear()}-${String(state.today.getMonth() + 1).padStart(2, '0')}-${String(state.today.getDate()).padStart(2, '0')}`) > 30 ? `<p class="source-age">${escapeHtml(t('staleSource'))}</p>` : ''}
         <div class="card-actions">
           <a class="card-link card-link-primary" href="${escapeHtml(officialUrl)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(t("externalOfficialLabel", contest.title))}">
             <span>${escapeHtml(t("officialSite"))}</span>${externalIcon()}
@@ -472,6 +481,7 @@ function renderCard(source) {
           <a class="card-link" href="${escapeHtml(rulesUrl)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(t("externalRulesLabel", contest.title))}">
             <span>${escapeHtml(t("rules"))}</span>${externalIcon()}
           </a>
+          <a class="card-link" href="${state.lang === 'en' ? '/en' : ''}/planner/?contest=${encodeURIComponent(source.id)}">${escapeHtml(t('prepareEntry'))} →</a>
         </div>
       </div>
     </article>`;

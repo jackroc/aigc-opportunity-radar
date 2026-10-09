@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 import { renderContestSnapshot, resolveOpportunityDatasets } from '../assets/site.js';
 import { renderTaskSnapshot } from '../assets/tasks.js';
 import { contentPath, EDITORIAL_DATE, GUIDES, INFORMATION, REPOSITORY, SITE_URL } from '../lib/editorial.mjs';
+import { PLAN_REVISION } from '../assets/participation-core.mjs';
+import { participationBody, participationCopy } from '../lib/participation-page.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const escape = (value) => String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
@@ -32,7 +34,7 @@ function guideCards(lang) {
 }
 
 function guideBand(lang = 'zh') {
-  return `<section class="section guide-band" data-editorial-language="${lang}" ${lang === 'en' ? 'hidden' : ''} aria-labelledby="guides-heading-${lang}"><div class="section-heading"><div><p class="section-kicker">${lang === 'zh' ? '从发现到行动' : 'From discovery to a decision'}</p><h2 id="guides-heading-${lang}">${lang === 'zh' ? '先判断，再投入' : 'Make an informed start'}</h2></div><a class="card-link" href="${contentPath('guides', lang)}">${lang === 'zh' ? '全部参赛指南' : 'All participation guides'} →</a></div>${guideCards(lang)}<p class="editorial-note">${lang === 'zh' ? '目录负责更新机会，指南帮助你判断资格、准备材料与确认交付。以下是本站编辑建议，具体要求请以官方规则为准。' : 'The directory tracks opportunities; the guides help you evaluate eligibility, prepare material and agree on delivery. These are editorial suggestions, not a substitute for official rules.'}</p></section>`;
+  return `<section class="section guide-band" data-editorial-language="${lang}" ${lang === 'en' ? 'hidden' : ''} aria-labelledby="guides-heading-${lang}"><div class="section-heading"><div><p class="section-kicker">${lang === 'zh' ? '从发现到行动' : 'From discovery to a decision'}</p><h2 id="guides-heading-${lang}">${lang === 'zh' ? '先判断，再投入' : 'Make an informed start'}</h2></div><a class="card-link" href="${contentPath('guides', lang)}">${lang === 'zh' ? '全部参赛指南' : 'All participation guides'} →</a></div><p><a class="button button-primary" href="${contentPath('planner', lang)}">${lang === 'zh' ? '做一份自己的参赛计划' : 'Build your participation plan'} →</a></p>${guideCards(lang)}<p class="editorial-note">${lang === 'zh' ? '目录负责更新机会，指南帮助你判断资格、准备材料与确认交付。以下是本站编辑建议，具体要求请以官方规则为准。' : 'The directory tracks opportunities; the guides help you evaluate eligibility, prepare material and agree on delivery. These are editorial suggestions, not a substitute for official rules.'}</p></section>`;
 }
 
 function metadata(path, title, description, lang, counterpart) {
@@ -60,18 +62,18 @@ function usefulLinks(slug, lang) {
   return `<section class="reading-links"><h2>${zh ? '相关资料与反馈' : 'References & feedback'}</h2><ul>${links.map(([label, url]) => `<li><a href="${escape(url)}">${escape(label)} →</a></li>`).join('')}</ul></section>`;
 }
 
-function editorialPage(slug, copy, lang, body, isArticle = false) {
+function editorialPage(slug, copy, lang, body, isArticle = false, revision = EDITORIAL_DATE) {
   const zh = lang === 'zh';
   const path = contentPath(slug, lang);
   const counterpart = contentPath(slug, zh ? 'en' : 'zh');
   const brand = zh ? 'AIGC 机会雷达' : 'AIGC Opportunity Radar';
   const home = zh ? '/' : '/?lang=en';
-  const navigation = [['guides', zh ? '参赛指南' : 'Guides'], ['about', zh ? '关于与收录方法' : 'About & methodology'], ['privacy', zh ? '隐私政策' : 'Privacy'], ['contact', zh ? '联系与纠错' : 'Contact & corrections']];
-  const schema = { '@context': 'https://schema.org', '@type': isArticle ? 'Article' : 'WebPage', name: copy.title, headline: copy.title, description: copy.description, inLanguage: zh ? 'zh-CN' : 'en', url: `${SITE_URL}${path}`, dateModified: EDITORIAL_DATE, ...(isArticle ? { datePublished: EDITORIAL_DATE, author: { '@type': 'Organization', name: brand, url: `${SITE_URL}${contentPath('about', lang)}` } } : {}) };
+  const navigation = [['planner', zh ? '参赛准备工具' : 'Participation planner'], ['guides', zh ? '参赛指南' : 'Guides'], ['about', zh ? '关于与收录方法' : 'About & methodology'], ['privacy', zh ? '隐私政策' : 'Privacy'], ['contact', zh ? '联系与纠错' : 'Contact & corrections']];
+  const schema = { '@context': 'https://schema.org', '@type': isArticle ? 'Article' : 'WebPage', name: copy.title, headline: copy.title, description: copy.description, inLanguage: zh ? 'zh-CN' : 'en', url: `${SITE_URL}${path}`, dateModified: revision, ...(isArticle ? { datePublished: revision, author: { '@type': 'Organization', name: brand, url: `${SITE_URL}${contentPath('about', lang)}` } } : {}) };
   return `<!doctype html><html lang="${zh ? 'zh-CN' : 'en'}" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(copy.title)} | ${brand}</title>${metadata(path, copy.title, copy.description, lang, counterpart)}<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/assets/site.css"><script type="module" src="/assets/editorial.js"></script><script type="application/ld+json">${safeJson(schema)}</script></head><body>
     <a class="skip-link" href="#main-content">${zh ? '跳到主要内容' : 'Skip to content'}</a>
-    <header class="site-header"><div class="header-inner editorial-header"><a class="brand" href="${home}"><img src="/assets/favicon.svg" alt="" width="36" height="36"><span class="brand-copy"><strong>${brand}</strong></span></a><nav class="primary-nav" aria-label="${zh ? '主要导航' : 'Main navigation'}"><a class="nav-link" href="${home}#directory">${zh ? '比赛机会' : 'Contests'}</a><a class="nav-link" href="/tasks/${zh ? '' : '?lang=en'}">${zh ? '任务平台' : 'Tasks'}</a><a class="nav-link" href="${contentPath('guides', lang)}">${zh ? '参赛指南' : 'Guides'}</a></nav><a class="language-button" href="${counterpart}" hreflang="${zh ? 'en' : 'zh-CN'}">${zh ? 'English' : '中文'}</a></div></header>
-    <main id="main-content" class="${slug === 'guides' ? 'section guide-index' : 'reading'}"><p class="section-kicker">${zh ? '雷达 · 参赛与交付' : 'RADAR · PARTICIPATION & DELIVERY'}</p><h1>${escape(copy.title)}</h1><p class="reading-meta">${brand} · ${zh ? '更新' : 'Updated'} <time datetime="${EDITORIAL_DATE}">${EDITORIAL_DATE}</time></p>${body}</main>
+    <header class="site-header"><div class="header-inner editorial-header"><a class="brand" href="${home}"><img src="/assets/favicon.svg" alt="" width="36" height="36"><span class="brand-copy"><strong>${brand}</strong></span></a><nav class="primary-nav" aria-label="${zh ? '主要导航' : 'Main navigation'}"><a class="nav-link" href="${home}#directory">${zh ? '比赛机会' : 'Contests'}</a><a class="nav-link" href="/tasks/${zh ? '' : '?lang=en'}">${zh ? '任务平台' : 'Tasks'}</a><a class="nav-link" href="${contentPath('guides', lang)}">${zh ? '参赛指南' : 'Guides'}</a><a class="nav-link" href="${contentPath('planner', lang)}">${zh ? '参赛准备' : 'Planner'}</a></nav><a class="language-button" href="${counterpart}" hreflang="${zh ? 'en' : 'zh-CN'}">${zh ? 'English' : '中文'}</a></div></header>
+    <main id="main-content" class="${slug === 'guides' ? 'section guide-index' : 'reading'}"><p class="section-kicker">${zh ? '雷达 · 参赛与交付' : 'RADAR · PARTICIPATION & DELIVERY'}</p><h1>${escape(copy.title)}</h1><p class="reading-meta">${brand} · ${zh ? '更新' : 'Updated'} <time datetime="${revision}">${revision}</time></p>${body}</main>
     <footer class="site-footer"><div class="footer-inner"><div><a class="brand" href="${home}">${brand}</a><p class="footer-note">${zh ? '独立的信息索引。参赛、验收与奖励以官方条件为准。' : 'An independent directory. Official terms govern entry, acceptance and rewards.'}</p></div><nav class="footer-links" aria-label="${zh ? '网站信息' : 'Site information'}">${navigation.map(([target, label]) => `<a href="${contentPath(target, lang)}">${label}</a>`).join('')}</nav></div></footer></body></html>`;
 }
 
@@ -114,22 +116,25 @@ export async function buildSite({ output = join(root, 'public'), now = new Date(
   for (const lang of ['zh', 'en']) {
     const zh = lang === 'zh';
     const indexCopy = { title: zh ? '参赛与任务指南' : 'Participation & task guides', description: zh ? '从选择机会到准备提交，用具体步骤安排创作投入。' : 'Practical steps for choosing opportunities and preparing a complete delivery.' };
-    await publish(contentPath('guides', lang), editorialPage('guides', indexCopy, lang, `<p class="reading-intro">${indexCopy.description}</p>${guideCards(lang)}<p class="editorial-note">${zh ? '指南独立维护；目录继续跟随上游自动同步，无需每天手动更新官网。' : 'Guides are maintained independently; the directory continues to follow upstream updates automatically.'}</p>`));
+    await publish(contentPath('guides', lang), editorialPage('guides', indexCopy, lang, `<p class="reading-intro">${indexCopy.description}</p><p><a class="button button-primary" href="${contentPath('planner', lang)}">${lang === 'zh' ? '做一份自己的参赛计划' : 'Build your participation plan'} →</a></p>${guideCards(lang)}<p class="editorial-note">${zh ? '指南独立维护；目录继续跟随上游自动同步，无需每天手动更新官网。' : 'Guides are maintained independently; the directory continues to follow upstream updates automatically.'}</p>`, false, PLAN_REVISION));
     pages.push(contentPath('guides', lang));
     for (const guide of GUIDES) {
       const slug = `guides/${guide.slug}`;
       const copy = guide[lang];
       const toc = `<nav class="reading-toc" aria-label="${zh ? '本文目录' : 'In this guide'}"><ol>${copy.sections.map(([heading], i) => `<li><a href="#section-${i + 1}">${escape(heading)}</a></li>`).join('')}</ol></nav>`;
-      await publish(contentPath(slug, lang), editorialPage(slug, copy, lang, `${toc}${bodySections(copy)}<aside class="editorial-note">${zh ? '本文为本站编辑建议，未承诺具体赛事接受某类作品或任务必然支付。资料字段与来源处理方式见' : 'This editorial guide does not promise that a particular contest accepts an entry or a task will pay. See our'} <a href="${contentPath('about', lang)}">${zh ? '收录方法' : 'methodology'}</a>${zh ? '。' : '.'}</aside>${usefulLinks(slug, lang)}`, true));
+      const sources = guide.sources ? `<section class="reading-links"><h2>${zh ? '本文查阅来源' : 'Sources consulted'}</h2><ul>${guide.sources.map(source => `<li><a href="${escape(source.url)}">${escape(source.label)}</a></li>`).join('')}</ul><p>${zh ? '上文已区分来源事实与本站规划建议。实际报名仍以官方最新规则为准。' : 'Source facts and our planning advice are distinguished above. Current official rules govern any actual entry.'}</p></section>` : '';
+      await publish(contentPath(slug, lang), editorialPage(slug, copy, lang, `${toc}${bodySections(copy)}${sources}<aside class="editorial-note">${zh ? '本文为本站编辑建议，未承诺具体赛事接受某类作品或任务必然支付。资料字段与来源处理方式见' : 'This editorial guide does not promise that a particular contest accepts an entry or a task will pay. See our'} <a href="${contentPath('about', lang)}">${zh ? '收录方法' : 'methodology'}</a>${zh ? '。' : '.'}</aside><p><a href="${contentPath('planner', lang)}">${zh ? '打开参赛准备工具，记录自己的核对结果' : 'Open the participation planner to record your own checks'} →</a></p>${usefulLinks(slug, lang)}`, true, guide.updated || EDITORIAL_DATE));
       pages.push(contentPath(slug, lang));
     }
     for (const [slug, copies] of Object.entries(INFORMATION)) {
-      await publish(contentPath(slug, lang), editorialPage(slug, copies[lang], lang, bodySections(copies[lang]) + usefulLinks(slug, lang)));
+      await publish(contentPath(slug, lang), editorialPage(slug, copies[lang], lang, bodySections(copies[lang]) + usefulLinks(slug, lang), false, copies.updated || EDITORIAL_DATE));
       pages.push(contentPath(slug, lang));
     }
+    await publish(contentPath('planner', lang), editorialPage('planner', participationCopy(lang), lang, participationBody(contests, lang, now.toISOString().slice(0, 10), safeJson), false, PLAN_REVISION));
+    pages.push(contentPath('planner', lang));
   }
   await writeFile(join(output, 'robots.txt'), `User-agent: *\nAllow: /\nDisallow: /api/\nSitemap: ${SITE_URL}/sitemap.xml\n`);
-  await writeFile(join(output, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${['/', '/tasks/', ...pages].map((path) => `<url><loc>${SITE_URL}${path}</loc>${pages.includes(path) ? `<lastmod>${EDITORIAL_DATE}</lastmod>` : ''}</url>`).join('')}</urlset>`);
+  await writeFile(join(output, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${['/', '/tasks/', ...pages].map((path) => `<url><loc>${SITE_URL}${path}</loc></url>`).join('')}</urlset>`);
   return { contests: contestView.count, tasks: taskView.count, editorialPages: pages.length, output };
 }
 
