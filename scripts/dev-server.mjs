@@ -24,6 +24,9 @@ const contentTypes = new Map([
   [".mjs", "text/javascript; charset=utf-8"],
   [".json", "application/json; charset=utf-8"],
   [".txt", "text/plain; charset=utf-8"],
+  [".md", "text/plain; charset=utf-8"],
+  [".csv", "text/csv; charset=utf-8"],
+  [".zip", "application/zip"],
   [".svg", "image/svg+xml"],
   [".png", "image/png"],
   [".xml", "application/xml; charset=utf-8"],
@@ -140,7 +143,8 @@ function staticPath(pathname) {
     || route === "/ads.txt"
     || route === "/robots.txt"
     || route === "/sitemap.xml"
-    || /^\/(?:en\/)?(?:guides|about|privacy|contact)\//.test(route)
+    || /^\/(?:en\/)?(?:guides|about|privacy|contact|planner|opportunities|resources)\//.test(route)
+    || route.startsWith("/downloads/")
     || route === "/feed.xml"
     || route === "/deadlines.ics"
     || route.startsWith("/assets/")

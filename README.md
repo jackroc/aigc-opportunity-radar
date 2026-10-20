@@ -24,7 +24,7 @@ Contest data originates from [Awesome AIGC Creative Contests](https://github.com
 
 The `Sync upstream contest data` GitHub Actions workflow checks the upstream repository every 15 minutes. It keeps `data/contests.json`, its original schema, RSS, and calendar as a separate core mirror. It also reads the upstream opt-in manifest and mirrors only the shards named in [`data/opportunity-selection.json`](data/opportunity-selection.json), validating each against the independent extension schema. Invalid or unavailable responses fail safely without replacing the checked-in snapshot.
 
-This deployment currently opts into `global`, `cn-national`, and `cn-local`. A deployment serving a different audience can remove irrelevant IDs from the selection file without changing the upstream project or downloading those shards. The build publishes the selected records as readable HTML; the browser then refreshes the same selection and labels them as extensions; if extension loading fails, it still displays the core directory. The root RSS and calendar intentionally remain core-only for upstream compatibility.
+This deployment currently opts into `global`, `cn-national`, and `cn-local`. A deployment serving a different audience can remove irrelevant IDs from the selection file without changing the upstream project or downloading those shards. The build publishes the selected records as readable HTML; the browser then refreshes the same selection and labels them as extensions; if extension loading fails, it still displays the core directory. The root RSS and calendar files remain core-only for upstream compatibility. The homepage subscription buttons point to the separate editorial feed and calendar under `/opportunities/`.
 
 The workflow can also be run manually from the repository's **Actions** tab. Each successful data change is committed to `main`, giving the site a versioned snapshot that can be audited or rolled back.
 
@@ -68,7 +68,19 @@ Verify the live page source and [ads.txt](https://aigccreative.com/ads.txt) befo
 
 `npm run build` creates `public/` from the current data snapshot and shared card renderers. Vercel uses that directory for static assets; existing root `api/` functions remain server endpoints. Every successful data-sync commit rebuilds the published directory. Search, language and filters enhance the initial HTML; a failed refresh retains the last published records.
 
-`lib/editorial.mjs` holds three original participation guides plus About, Privacy and Contact in Chinese and English. Their revision date changes when the text changes, not on every data sync. `/guides/` and `/en/guides/` link to them. The build also emits `robots.txt` and `sitemap.xml`. Generated output is not committed; edit source templates and run the build.
+`lib/editorial.mjs` and its guide modules hold nine original participation and case-study guides, plus About, Privacy and Contact in Chinese and English. Their revision date changes when the text changes, not on every data sync. `/guides/` and `/en/guides/` link to them. The build also emits `robots.txt` and `sitemap.xml`. Generated output is not committed; edit source templates and run the build.
+
+### Independently reviewed opportunities and resources
+
+`assets/reviewed-opportunities.mjs` contains seven opportunities researched from organizer pages on 2026-10-20. These records are merged by ID into both the build-time snapshot and browser refresh, independently of the upstream mirrors. Research dates stay fixed until the sources are actually checked again. A missing opening date is null, an unlisted fee is unknown, and expired records remain readable as explicitly closed research instead of being recommended as open calls.
+
+Each record has bilingual facts, a source list, independent fit/effort analysis and preparation steps. Published routes are `/opportunities/` and `/opportunities/<id>/`, with `/en/` equivalents. Source conflicts are disclosed rather than silently resolved. The separate RSS and all-day calendar do not imply exact cutoff instants.
+
+`lib/workbook.mjs` holds a complete original **written** 30-second EchoCup paper edit and nine downloadable preparation files. `/resources/` explains their use; the ZIP is generated with Node built-ins, without an external build service. It contains no generated audio/video or fabricated submission evidence. Update the workbook date only when its content changes.
+
+Historical task cards show original publication separately from source activity. The accompanying guide documents actual 2023 GitHub issues still open at the 2026-10-20 check, without treating activity or a dollar label as renewed payment confirmation.
+
+Before release, run `npm run verify` and `npm run build`, check both languages and small screens, and inspect the ZIP. The content checks exercise published internal links, closed-call handling, merge persistence, archive integrity and calendar line folding. Research provenance and excluded leads are recorded in [the research notes](docs/editorial-research-2026-10-20.md).
 
 ## License
 

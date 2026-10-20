@@ -7,6 +7,7 @@ import { buildSite, loadContestRecords, safeJson } from './build-site.mjs';
 import { renderContestSnapshot } from '../assets/site.js';
 import { renderTaskSnapshot } from '../assets/tasks.js';
 import { GUIDES, INFORMATION, contentPath } from '../lib/editorial.mjs';
+import { OPPORTUNITY_REVIEWS } from '../assets/reviewed-opportunities.mjs';
 
 const fixtureDate = new Date('2026-09-17T12:00:00Z');
 const readData = async (name) => JSON.parse(await readFile(new URL(`../data/${name}.json`, import.meta.url), 'utf8'));
@@ -65,7 +66,7 @@ test('a build publishes complete HTML, bilingual guides and a limited static out
     assert.deepEqual(embedded, await loadContestRecords());
     assert.equal(new Set(embedded.map((x) => x.id)).size, embedded.length);
     const sitemap = await readFile(join(output, 'sitemap.xml'), 'utf8');
-    const slugs = ['planner', 'guides', ...GUIDES.map((guide) => `guides/${guide.slug}`), ...Object.keys(INFORMATION)];
+    const slugs = ['planner', 'guides', 'opportunities', 'resources', ...OPPORTUNITY_REVIEWS.map((review) => `opportunities/${review.id}`), ...GUIDES.map((guide) => `guides/${guide.slug}`), ...Object.keys(INFORMATION)];
     for (const lang of ['zh', 'en']) for (const slug of slugs) {
       const path = contentPath(slug, lang);
       const page = await readFile(join(output, path, 'index.html'), 'utf8');

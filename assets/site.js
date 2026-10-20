@@ -1,4 +1,5 @@
 import { verificationAge } from './participation-core.mjs';
+import { mergeReviewedRecords, reviewPath } from './reviewed-opportunities.mjs';
 
 const DIRECTORY_SOURCES = Object.freeze({
   core: {
@@ -23,6 +24,8 @@ const translations = {
     primaryNavLabel: "主要导航",
     navContests: "比赛机会",
     navGuides: "参赛指南",
+    navReviews: "编辑详解",
+    navResources: "准备资料",
     navPlanner: "参赛准备",
     prepareEntry: "准备参赛",
     staleSource: "资料核验已超过 30 天，请重新确认官方规则。",
@@ -31,9 +34,9 @@ const translations = {
     navContact: "联系与纠错",
     refreshFailed: "实时刷新暂不可用，当前显示上次发布的数据。请以官方规则为准。",
     navTasks: "任务平台",
-    heroEyebrow: "来源日期透明 · 自动同步目录",
+    heroEyebrow: "官方来源核验 · 编辑精选与自动目录",
     heroTitle: "把时间留给创作，<em>把机会交给雷达。</em>",
-    heroLede: "聚合 AIGC 核心赛事，并按需加载已核验的扩展机会，快速看清截止日期、参赛门槛和官方入口。",
+    heroLede: "发现值得准备的 AIGC 比赛，读懂资格、费用与作品要求，再用详解和模板把机会变成自己的创作计划。",
     browseContests: "浏览比赛",
     viewSource: "查看开源项目",
     trustLabel: "目录特点",
@@ -90,7 +93,7 @@ const translations = {
     viewFullList: "查看完整清单",
     subscribeKicker: "Stay in the loop",
     subscribeTitle: "让机会主动找到你",
-    subscribeText: "通过 RSS 或日历订阅 AIGC 核心清单；扩展机会目前在网页中按需加载。",
+    subscribeText: "通过 RSS 订阅编辑核验的机会，用日历保留截止日期提醒；精确时刻和时区请看官方规则。",
     subscribeRss: "订阅 RSS",
     subscribeCalendar: "添加到日历",
     footerTagline: "开放、可核验、持续更新",
@@ -124,7 +127,9 @@ const translations = {
     brandTagline: "Creative Opportunity Radar",
     primaryNavLabel: "Primary navigation",
     navContests: "Contests",
-    navGuides: "Participation guides",
+    navGuides: "Guides",
+    navReviews: "Reviews",
+    navResources: "Resources",
     navPlanner: "Planner",
     prepareEntry: "Prepare an entry",
     staleSource: "Source verification is over 30 days old. Recheck the official rules.",
@@ -133,9 +138,9 @@ const translations = {
     navContact: "Contact & corrections",
     refreshFailed: "Live refresh is unavailable. Showing the last published data; check the official rules.",
     navTasks: "Task platforms",
-    heroEyebrow: "Transparent source dates · Automatically synced",
+    heroEyebrow: "Official source checks · Editorial picks and synced records",
     heroTitle: "Keep your time for making. <em>Let the radar find the openings.</em>",
-    heroLede: "A focused AIGC directory with explicitly selected, verified extension datasets—deadlines, eligibility, and official links in one place.",
+    heroLede: "Find an AI creative opportunity, understand eligibility, fees and deliverables, then turn the rules into your own preparation plan.",
     browseContests: "Browse contests",
     viewSource: "View open-source project",
     trustLabel: "Directory principles",
@@ -192,7 +197,7 @@ const translations = {
     viewFullList: "View full directory",
     subscribeKicker: "Stay in the loop",
     subscribeTitle: "Let opportunities find you",
-    subscribeText: "RSS and calendar follow the core AIGC directory; selected extensions are currently available on the website.",
+    subscribeText: "Follow editorially reviewed opportunities via RSS and calendar reminders; check official rules for exact cutoff times and zones.",
     subscribeRss: "Subscribe via RSS",
     subscribeCalendar: "Add to calendar",
     footerTagline: "Open, verifiable, continuously updated",
@@ -288,6 +293,7 @@ function normalizeSearch(value) {
 }
 
 export function classifyFee(contest) {
+  if (['free', 'paid', 'unknown'].includes(contest.fee_kind)) return contest.fee_kind;
   const value = normalizeSearch(`${contest.fee} ${contest.en?.fee ?? ""}`);
   if (/未注明|未列|待确认|not stated|not listed|not specified|to confirm|unknown/.test(value)) return "unknown";
   if (/收费|\bpaid\b|usd|cny|hkd|krw|\$|€|£|¥/.test(value)) return "paid";
@@ -368,7 +374,7 @@ function filterAndSortContests(contests, filters = state) {
       return left.deadline.localeCompare(right.deadline) || left.__index - right.__index;
     }
     if (filters.sort === "opening") {
-      return right.start_date.localeCompare(left.start_date) || left.__index - right.__index;
+      return (right.start_date || '').localeCompare(left.start_date || '') || left.__index - right.__index;
     }
     return right.verified_on.localeCompare(left.verified_on) || left.__index - right.__index;
   });
@@ -435,6 +441,7 @@ function renderCard(source) {
   const officialUrl = safeUrl(source.official_url);
   const rulesUrl = safeUrl(source.rules_url);
   const title = escapeHtml(contest.title);
+  const detailUrl = reviewPath(source.review_slug, state.lang);
   const categories = source.categories
     .filter((category) => validCategories.has(category))
     .map((category) => `<span class="category-badge">${escapeHtml(categoryLabel(category))}</span>`)
@@ -454,6 +461,7 @@ function renderCard(source) {
         <h3>${title}</h3>
         <p class="organizer">${escapeHtml(t("organizer"))} · ${escapeHtml(contest.organizer)}</p>
         <div class="card-tags">
+          ${detailUrl ? `<span class="scope-badge">${state.lang === 'zh' ? '编辑核验 · 有参赛详解' : 'Editorial review & entry guide'}</span>` : ''}
           ${scope}
           ${categories}
           <span class="fee-badge">${escapeHtml(feeLabel(feeClass))}</span>
@@ -475,6 +483,7 @@ function renderCard(source) {
         </div>
         ${verificationAge(source.verified_on, `${state.today.getFullYear()}-${String(state.today.getMonth() + 1).padStart(2, '0')}-${String(state.today.getDate()).padStart(2, '0')}`) > 30 ? `<p class="source-age">${escapeHtml(t('staleSource'))}</p>` : ''}
         <div class="card-actions">
+          ${detailUrl ? `<a class="card-link card-link-primary" href="${detailUrl}">${state.lang === 'zh' ? '阅读参赛详解' : 'Read entry analysis'} →</a>` : ''}
           <a class="card-link card-link-primary" href="${escapeHtml(officialUrl)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(t("externalOfficialLabel", contest.title))}">
             <span>${escapeHtml(t("officialSite"))}</span>${externalIcon()}
           </a>
@@ -741,11 +750,11 @@ async function loadContests() {
   try {
     optional = await loadSelectedOpportunities();
   } catch (error) {
-    console.warn("Opt-in opportunity data could not be loaded; showing the core directory only.", error);
+    console.warn("Opt-in opportunity data could not be loaded; keeping core and editorial records.", error);
   }
 
   const ids = new Set();
-  state.contests = [...payload, ...optional]
+  state.contests = mergeReviewedRecords([...payload, ...optional])
     .filter((contest) => contest && contest.id && contest.title && contest.deadline && contest.verified_on && contest.en)
     .filter((contest) => {
       if (ids.has(contest.id)) return false;

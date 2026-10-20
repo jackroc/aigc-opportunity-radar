@@ -1,5 +1,5 @@
 export const PLAN_KEY = 'radar-participation-v1';
-export const PLAN_REVISION = '2026-10-09';
+export const PLAN_REVISION = '2026-10-20';
 export const CHECKS = [
   { id: 'eligibility', zh: '资格：年龄、地区、组别、个人或团队均已核对', en: 'Eligibility: age, region, division and team rules checked' },
   { id: 'ai', zh: 'AI 边界：允许的工具、披露要求和原创要求已确认', en: 'AI rules: tools, disclosure and originality confirmed' },

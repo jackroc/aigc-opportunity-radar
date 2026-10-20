@@ -6,6 +6,10 @@ import { renderTaskSnapshot } from '../assets/tasks.js';
 import { contentPath, EDITORIAL_DATE, GUIDES, INFORMATION, REPOSITORY, SITE_URL } from '../lib/editorial.mjs';
 import { PLAN_REVISION } from '../assets/participation-core.mjs';
 import { participationBody, participationCopy } from '../lib/participation-page.mjs';
+import { mergeReviewedRecords, OPPORTUNITY_REVIEWS, RESEARCH_DATE } from '../assets/reviewed-opportunities.mjs';
+import { reviewedBand, reviewBody, reviewIndexBody, reviewedFeed } from '../lib/opportunity-pages.mjs';
+import { resourcesBody, workbookPreview, WORKBOOK_DATE, WORKBOOK_FILES, WORKBOOK_ROOT } from '../lib/workbook.mjs';
+import { textZip } from '../lib/download-zip.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const escape = (value) => String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
@@ -22,19 +26,19 @@ export async function loadContestRecords() {
     return records.map((record) => ({ ...record, __dataset: dataset.id }));
   }));
   const seen = new Set();
-  return [...core, ...extensions.flat()].filter((record) => {
+  return mergeReviewedRecords([...core, ...extensions.flat()].filter((record) => {
     if (!record?.id || seen.has(record.id)) return false;
     seen.add(record.id);
     return true;
-  }).map((record, index) => ({ ...record, __index: index }));
+  }));
 }
 
-function guideCards(lang) {
-  return `<div class="guide-grid">${GUIDES.map((guide, index) => `<a class="guide-card" href="${contentPath(`guides/${guide.slug}`, lang)}"><span class="section-kicker">0${index + 1}</span><h3>${escape(guide[lang].title)}</h3><p>${escape(guide[lang].description)}</p><span class="guide-read">${lang === 'zh' ? '阅读指南' : 'Read guide'} →</span></a>`).join('')}</div>`;
+function guideCards(lang, limit = GUIDES.length) {
+  return `<div class="guide-grid">${GUIDES.slice(0, limit).map((guide, index) => `<a class="guide-card" href="${contentPath(`guides/${guide.slug}`, lang)}"><span class="section-kicker">0${index + 1}</span><h3>${escape(guide[lang].title)}</h3><p>${escape(guide[lang].description)}</p><span class="guide-read">${lang === 'zh' ? '阅读指南' : 'Read guide'} →</span></a>`).join('')}</div>`;
 }
 
 function guideBand(lang = 'zh') {
-  return `<section class="section guide-band" data-editorial-language="${lang}" ${lang === 'en' ? 'hidden' : ''} aria-labelledby="guides-heading-${lang}"><div class="section-heading"><div><p class="section-kicker">${lang === 'zh' ? '从发现到行动' : 'From discovery to a decision'}</p><h2 id="guides-heading-${lang}">${lang === 'zh' ? '先判断，再投入' : 'Make an informed start'}</h2></div><a class="card-link" href="${contentPath('guides', lang)}">${lang === 'zh' ? '全部参赛指南' : 'All participation guides'} →</a></div><p><a class="button button-primary" href="${contentPath('planner', lang)}">${lang === 'zh' ? '做一份自己的参赛计划' : 'Build your participation plan'} →</a></p>${guideCards(lang)}<p class="editorial-note">${lang === 'zh' ? '目录负责更新机会，指南帮助你判断资格、准备材料与确认交付。以下是本站编辑建议，具体要求请以官方规则为准。' : 'The directory tracks opportunities; the guides help you evaluate eligibility, prepare material and agree on delivery. These are editorial suggestions, not a substitute for official rules.'}</p></section>`;
+  return `<section class="section guide-band" data-editorial-language="${lang}" ${lang === 'en' ? 'hidden' : ''} aria-labelledby="guides-heading-${lang}"><div class="section-heading"><div><p class="section-kicker">${lang === 'zh' ? '从发现到行动' : 'From discovery to a decision'}</p><h2 id="guides-heading-${lang}">${lang === 'zh' ? '先判断，再投入' : 'Make an informed start'}</h2></div><a class="card-link" href="${contentPath('guides', lang)}">${lang === 'zh' ? '全部参赛指南' : 'All participation guides'} →</a></div><p><a class="button button-primary" href="${contentPath('planner', lang)}">${lang === 'zh' ? '做一份自己的参赛计划' : 'Build your participation plan'} →</a></p>${guideCards(lang, 3)}<p class="editorial-note">${lang === 'zh' ? '目录负责更新机会，指南帮助你判断资格、准备材料与确认交付。以下是本站编辑建议，具体要求请以官方规则为准。' : 'The directory tracks opportunities; the guides help you evaluate eligibility, prepare material and agree on delivery. These are editorial suggestions, not a substitute for official rules.'}</p></section>`;
 }
 
 function metadata(path, title, description, lang, counterpart) {
@@ -68,12 +72,12 @@ function editorialPage(slug, copy, lang, body, isArticle = false, revision = EDI
   const counterpart = contentPath(slug, zh ? 'en' : 'zh');
   const brand = zh ? 'AIGC 机会雷达' : 'AIGC Opportunity Radar';
   const home = zh ? '/' : '/?lang=en';
-  const navigation = [['planner', zh ? '参赛准备工具' : 'Participation planner'], ['guides', zh ? '参赛指南' : 'Guides'], ['about', zh ? '关于与收录方法' : 'About & methodology'], ['privacy', zh ? '隐私政策' : 'Privacy'], ['contact', zh ? '联系与纠错' : 'Contact & corrections']];
+  const navigation = [['opportunities', zh ? '编辑详解' : 'Opportunity reviews'], ['resources', zh ? '准备资料' : 'Resources'], ['planner', zh ? '参赛准备工具' : 'Participation planner'], ['guides', zh ? '参赛指南' : 'Guides'], ['about', zh ? '关于与收录方法' : 'About & methodology'], ['privacy', zh ? '隐私政策' : 'Privacy'], ['contact', zh ? '联系与纠错' : 'Contact & corrections']];
   const schema = { '@context': 'https://schema.org', '@type': isArticle ? 'Article' : 'WebPage', name: copy.title, headline: copy.title, description: copy.description, inLanguage: zh ? 'zh-CN' : 'en', url: `${SITE_URL}${path}`, dateModified: revision, ...(isArticle ? { datePublished: revision, author: { '@type': 'Organization', name: brand, url: `${SITE_URL}${contentPath('about', lang)}` } } : {}) };
   return `<!doctype html><html lang="${zh ? 'zh-CN' : 'en'}" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(copy.title)} | ${brand}</title>${metadata(path, copy.title, copy.description, lang, counterpart)}<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/assets/site.css"><script type="module" src="/assets/editorial.js"></script><script type="application/ld+json">${safeJson(schema)}</script></head><body>
     <a class="skip-link" href="#main-content">${zh ? '跳到主要内容' : 'Skip to content'}</a>
-    <header class="site-header"><div class="header-inner editorial-header"><a class="brand" href="${home}"><img src="/assets/favicon.svg" alt="" width="36" height="36"><span class="brand-copy"><strong>${brand}</strong></span></a><nav class="primary-nav" aria-label="${zh ? '主要导航' : 'Main navigation'}"><a class="nav-link" href="${home}#directory">${zh ? '比赛机会' : 'Contests'}</a><a class="nav-link" href="/tasks/${zh ? '' : '?lang=en'}">${zh ? '任务平台' : 'Tasks'}</a><a class="nav-link" href="${contentPath('guides', lang)}">${zh ? '参赛指南' : 'Guides'}</a><a class="nav-link" href="${contentPath('planner', lang)}">${zh ? '参赛准备' : 'Planner'}</a></nav><a class="language-button" href="${counterpart}" hreflang="${zh ? 'en' : 'zh-CN'}">${zh ? 'English' : '中文'}</a></div></header>
-    <main id="main-content" class="${slug === 'guides' ? 'section guide-index' : 'reading'}"><p class="section-kicker">${zh ? '雷达 · 参赛与交付' : 'RADAR · PARTICIPATION & DELIVERY'}</p><h1>${escape(copy.title)}</h1><p class="reading-meta">${brand} · ${zh ? '更新' : 'Updated'} <time datetime="${revision}">${revision}</time></p>${body}</main>
+    <header class="site-header"><div class="header-inner editorial-header"><a class="brand" href="${home}"><img src="/assets/favicon.svg" alt="" width="36" height="36"><span class="brand-copy"><strong>${brand}</strong></span></a><nav class="primary-nav" aria-label="${zh ? '主要导航' : 'Main navigation'}"><a class="nav-link" href="${home}#directory">${zh ? '比赛机会' : 'Contests'}</a><a class="nav-link" href="/tasks/${zh ? '' : '?lang=en'}">${zh ? '任务平台' : 'Tasks'}</a><a class="nav-link" href="${contentPath('opportunities', lang)}">${zh ? '编辑详解' : 'Reviews'}</a><a class="nav-link" href="${contentPath('resources', lang)}">${zh ? '准备资料' : 'Resources'}</a><a class="nav-link" href="${contentPath('guides', lang)}">${zh ? '参赛指南' : 'Guides'}</a><a class="nav-link" href="${contentPath('planner', lang)}">${zh ? '参赛准备' : 'Planner'}</a></nav><a class="language-button" href="${counterpart}" hreflang="${zh ? 'en' : 'zh-CN'}">${zh ? 'English' : '中文'}</a></div></header>
+    <main id="main-content" class="${['guides', 'opportunities', 'resources'].includes(slug) ? 'section guide-index' : 'reading'}"><p class="section-kicker">${zh ? '雷达 · 参赛与交付' : 'RADAR · PARTICIPATION & DELIVERY'}</p><h1>${escape(copy.title)}</h1><p class="reading-meta">${brand} · ${zh ? '更新' : 'Updated'} <time datetime="${revision}">${revision}</time></p>${body}</main>
     <footer class="site-footer"><div class="footer-inner"><div><a class="brand" href="${home}">${brand}</a><p class="footer-note">${zh ? '独立的信息索引。参赛、验收与奖励以官方条件为准。' : 'An independent directory. Official terms govern entry, acceptance and rewards.'}</p></div><nav class="footer-links" aria-label="${zh ? '网站信息' : 'Site information'}">${navigation.map(([target, label]) => `<a href="${contentPath(target, lang)}">${label}</a>`).join('')}</nav></div></footer></body></html>`;
 }
 
@@ -96,11 +100,13 @@ export async function buildSite({ output = join(root, 'public'), now = new Date(
   const publish = async (path, html) => { const file = join(output, path, 'index.html'); await mkdir(dirname(file), { recursive: true }); await writeFile(file, html); };
 
   const contests = await loadContestRecords();
+  const today = now.toISOString().slice(0, 10);
   const contestView = renderContestSnapshot(contests, { today: now });
   let home = replaceGrid(await read('index.html'), 'contest-grid', contestView.cards || '<p>当前没有有效比赛，请阅读参赛指南或稍后回来查看。</p>');
   for (const [id, value] of Object.entries({ 'hero-total': contestView.count, 'hero-urgent': contestView.urgent, 'hero-categories': contestView.categories, 'hero-verified': contestView.latest, 'results-count': contestView.result })) home = setText(home, id, value);
   home = home.replace('</head>', `<link rel="canonical" href="${SITE_URL}/"><script type="application/json" id="initial-contests">${safeJson(contests)}</script><noscript><style>.filter-panel,.header-actions{display:none}</style></noscript></head>`);
   home = home.replace('<section class="subscription-strip"', `${guideBand()}${guideBand('en')}<section class="subscription-strip"`);
+  home = home.replace('<section class="directory section"', `${reviewedBand('zh', today)}${reviewedBand('en', today)}<section class="directory section"`);
   await publish('', home);
 
   const directory = { tasks: await json('data/tasks.json'), platforms: await json('data/task-platforms.json'), sources: await json('data/task-sources.json') };
@@ -109,12 +115,25 @@ export async function buildSite({ output = join(root, 'public'), now = new Date(
   tasks = replaceGrid(tasks, 'platform-grid', taskView.platforms);
   for (const [id, value] of Object.entries({ 'task-total': taskView.count, 'task-priced': taskView.priced, 'task-sources': taskView.sources, 'task-latest': taskView.latest, 'task-results-count': taskView.result })) tasks = setText(tasks, id, value);
   tasks = tasks.replace('</head>', `<link rel="canonical" href="${SITE_URL}/tasks/"><script type="application/json" id="initial-tasks">${safeJson(directory)}</script><noscript><style>.filter-panel,.header-actions,.task-plan-button,.matching-workspace,[href="#opportunity-matcher"]{display:none}</style></noscript></head>`);
+  tasks = tasks.replace('<section class="matching-workspace section"', `<aside class="section editorial-note" data-editorial-language="zh"><strong>先区分公开议题与可领取赏金。</strong> 来源更新可能是讨论或描述变化，不是新的付款承诺。先核对最初发布日期、当前验收要求与维护者确认。<a href="/guides/verify-a-historical-bounty/">查看两条真实 Issue 的核验过程 →</a></aside><aside class="section editorial-note" data-editorial-language="en" hidden><strong>A public issue and a payable bounty are different signals.</strong> Read the original date, current scope and maintainer confirmation. <a href="/en/guides/verify-a-historical-bounty/">Read a real verification case study →</a></aside><section class="matching-workspace section"`);
   tasks = tasks.replace('</main>', `${guideBand()}${guideBand('en')}</main>`);
   await publish('tasks', tasks);
 
   const pages = [];
   for (const lang of ['zh', 'en']) {
     const zh = lang === 'zh';
+    const reviewedCopy = { title: zh ? '编辑核验的 AIGC 创作机会' : 'Reviewed AI creative opportunities', description: zh ? '官方事实、独立分析与明确的参赛门槛，帮助你决定投入。' : 'Official facts, independent analysis and explicit entry requirements to support a practical decision.' };
+    await publish(contentPath('opportunities', lang), editorialPage('opportunities', reviewedCopy, lang, reviewIndexBody(lang, today), false, RESEARCH_DATE));
+    pages.push(contentPath('opportunities', lang));
+    for (const review of OPPORTUNITY_REVIEWS) {
+      const slug = `opportunities/${review.id}`;
+      const copy = { title: review.title[lang], description: review.angle[lang] };
+      await publish(contentPath(slug, lang), editorialPage(slug, copy, lang, reviewBody(review, lang, today), true, RESEARCH_DATE));
+      pages.push(contentPath(slug, lang));
+    }
+    const resourceCopy = { title: zh ? '创作参赛准备资料与示范包' : 'Creator preparation workbooks and resources', description: zh ? '原创纸上分镜、规则证据表、权利台账与 AI 使用说明，免费直接下载。' : 'An original paper edit, rule-evidence matrix, rights ledger and AI-disclosure worksheets, available to download.' };
+    await publish(contentPath('resources', lang), editorialPage('resources', resourceCopy, lang, resourcesBody(lang), false, WORKBOOK_DATE));
+    pages.push(contentPath('resources', lang));
     const indexCopy = { title: zh ? '参赛与任务指南' : 'Participation & task guides', description: zh ? '从选择机会到准备提交，用具体步骤安排创作投入。' : 'Practical steps for choosing opportunities and preparing a complete delivery.' };
     await publish(contentPath('guides', lang), editorialPage('guides', indexCopy, lang, `<p class="reading-intro">${indexCopy.description}</p><p><a class="button button-primary" href="${contentPath('planner', lang)}">${lang === 'zh' ? '做一份自己的参赛计划' : 'Build your participation plan'} →</a></p>${guideCards(lang)}<p class="editorial-note">${zh ? '指南独立维护；目录继续跟随上游自动同步，无需每天手动更新官网。' : 'Guides are maintained independently; the directory continues to follow upstream updates automatically.'}</p>`, false, PLAN_REVISION));
     pages.push(contentPath('guides', lang));
@@ -123,7 +142,7 @@ export async function buildSite({ output = join(root, 'public'), now = new Date(
       const copy = guide[lang];
       const toc = `<nav class="reading-toc" aria-label="${zh ? '本文目录' : 'In this guide'}"><ol>${copy.sections.map(([heading], i) => `<li><a href="#section-${i + 1}">${escape(heading)}</a></li>`).join('')}</ol></nav>`;
       const sources = guide.sources ? `<section class="reading-links"><h2>${zh ? '本文查阅来源' : 'Sources consulted'}</h2><ul>${guide.sources.map(source => `<li><a href="${escape(source.url)}">${escape(source.label)}</a></li>`).join('')}</ul><p>${zh ? '上文已区分来源事实与本站规划建议。实际报名仍以官方最新规则为准。' : 'Source facts and our planning advice are distinguished above. Current official rules govern any actual entry.'}</p></section>` : '';
-      await publish(contentPath(slug, lang), editorialPage(slug, copy, lang, `${toc}${bodySections(copy)}${sources}<aside class="editorial-note">${zh ? '本文为本站编辑建议，未承诺具体赛事接受某类作品或任务必然支付。资料字段与来源处理方式见' : 'This editorial guide does not promise that a particular contest accepts an entry or a task will pay. See our'} <a href="${contentPath('about', lang)}">${zh ? '收录方法' : 'methodology'}</a>${zh ? '。' : '.'}</aside><p><a href="${contentPath('planner', lang)}">${zh ? '打开参赛准备工具，记录自己的核对结果' : 'Open the participation planner to record your own checks'} →</a></p>${usefulLinks(slug, lang)}`, true, guide.updated || EDITORIAL_DATE));
+      await publish(contentPath(slug, lang), editorialPage(slug, copy, lang, `${toc}${bodySections(copy)}${guide.workbook ? workbookPreview(lang) : ''}${sources}<aside class="editorial-note">${zh ? '本文为本站编辑建议，未承诺具体赛事接受某类作品或任务必然支付。资料字段与来源处理方式见' : 'This editorial guide does not promise that a particular contest accepts an entry or a task will pay. See our'} <a href="${contentPath('about', lang)}">${zh ? '收录方法' : 'methodology'}</a>${zh ? '。' : '.'}</aside><p><a href="${contentPath('planner', lang)}">${zh ? '打开参赛准备工具，记录自己的核对结果' : 'Open the participation planner to record your own checks'} →</a></p>${usefulLinks(slug, lang)}`, true, guide.updated || EDITORIAL_DATE));
       pages.push(contentPath(slug, lang));
     }
     for (const [slug, copies] of Object.entries(INFORMATION)) {
@@ -133,6 +152,20 @@ export async function buildSite({ output = join(root, 'public'), now = new Date(
     await publish(contentPath('planner', lang), editorialPage('planner', participationCopy(lang), lang, participationBody(contests, lang, now.toISOString().slice(0, 10), safeJson), false, PLAN_REVISION));
     pages.push(contentPath('planner', lang));
   }
+  await mkdir(join(output, WORKBOOK_ROOT), { recursive: true });
+  for (const [filename, body] of Object.entries(WORKBOOK_FILES)) await writeFile(join(output, WORKBOOK_ROOT, filename), body);
+  await writeFile(join(output, WORKBOOK_ROOT, 'creator-entry-workbook.zip'), textZip(WORKBOOK_FILES));
+  await writeFile(join(output, 'opportunities/feed.xml'), reviewedFeed());
+  const icsText = (value) => String(value).replaceAll('\\', '\\\\').replaceAll('\n', '\\n').replaceAll(',', '\\,').replaceAll(';', '\\;');
+  const calendar = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//AIGC Opportunity Radar//Editorial Deadlines//ZH', 'CALSCALE:GREGORIAN'];
+  for (const review of OPPORTUNITY_REVIEWS) {
+    const followingDay = new Date(`${review.deadline}T00:00:00Z`); followingDay.setUTCDate(followingDay.getUTCDate() + 1);
+    calendar.push('BEGIN:VEVENT', `UID:editorial-${review.id}@aigccreative.com`, `DTSTAMP:${now.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')}`, `DTSTART;VALUE=DATE:${review.deadline.replaceAll('-', '')}`, `DTEND;VALUE=DATE:${followingDay.toISOString().slice(0, 10).replaceAll('-', '')}`, `SUMMARY:${icsText(review.title.zh)} 截止日期提醒`, `DESCRIPTION:${icsText(`这是日期提醒，不是精确截止时刻。${review.timezone.zh}。资料核验于 ${RESEARCH_DATE}；请复核官方规则。`)}`, `URL:${SITE_URL}/opportunities/${review.id}/`, 'END:VEVENT');
+  }
+  calendar.push('END:VCALENDAR');
+  // RFC 5545 lines are folded by UTF-8 byte length, preserving code points.
+  const fold = (line) => { const chunks = []; let chunk = ''; for (const char of line) { if (Buffer.byteLength(chunk + char) > 73) { chunks.push(chunk); chunk = ' '; } chunk += char; } chunks.push(chunk); return chunks.join('\r\n'); };
+  await writeFile(join(output, 'opportunities/deadlines.ics'), calendar.map(fold).join('\r\n') + '\r\n');
   await writeFile(join(output, 'robots.txt'), `User-agent: *\nAllow: /\nDisallow: /api/\nSitemap: ${SITE_URL}/sitemap.xml\n`);
   await writeFile(join(output, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${['/', '/tasks/', ...pages].map((path) => `<url><loc>${SITE_URL}${path}</loc></url>`).join('')}</urlset>`);
   return { contests: contestView.count, tasks: taskView.count, editorialPages: pages.length, output };

@@ -25,6 +25,8 @@ if (payload) {
   }
   function render() {
     const r = active(); if (!r) return;
+    const languageLink = document.querySelector('header a.language-button');
+    if (languageLink) languageLink.href = `${zh ? '/en' : ''}/planner/?contest=${encodeURIComponent(r.id)}`;
     document.querySelector('#plan-opportunity').innerHTML = comparisonCard(r, lang, today);
     const d = readDraft(), p = computePlan({ ...d, deadline: r.deadline, today });
     document.querySelector('#plan-print-notes').textContent = d.notes;

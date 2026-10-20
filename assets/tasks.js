@@ -33,6 +33,8 @@ const translations = {
     primaryNavLabel: "主要导航",
     navContests: "比赛机会",
     navGuides: "参赛指南",
+    navReviews: "编辑详解",
+    navResources: "准备资料",
     navPlanner: "参赛准备",
     navAbout: "关于与收录方法",
     navPrivacy: "隐私政策",
@@ -111,7 +113,7 @@ const translations = {
     platformKicker: "Source coverage",
     platformTitle: "没有公开接口的平台，也先给你可靠入口",
     platformIntro: "登录后才能看到的任务不会被冒险抓取。这里保留官方入口与接入状态，后续优先通过 API、Feed 或合作方式补齐。",
-    matcherKicker: "Phase two · Opportunity matcher",
+    matcherKicker: "Opportunity matcher",
     matcherTitle: "不是替你接任务，而是先帮你避坑、排优先级",
     matcherText: "用你的强项、时间和目标计算可解释的匹配度，再为每条任务生成开工确认、执行和提交清单。你不建立画像也能继续浏览全部任务。",
     matcherPrivacyTitle: "画像只保存在当前浏览器",
@@ -210,7 +212,7 @@ const translations = {
     copiedOutreach: "联系模板已复制。",
     copiedAiPrompt: "分析提示词已复制。",
     copyFailed: "复制失败，请展开内容后手动复制。",
-    assistantKicker: "Phase three · Conversation assistant",
+    assistantKicker: "Conversation assistant",
     assistantTitle: "把判断变成一段可以继续的对话",
     assistantIntro: "每次提问和回复都会保存到当前设备；使用随机设备 ID，不采集浏览器指纹。配置云数据库后会自动同步。",
     assistantDevice: (label) => `匿名设备 ${label}`,
@@ -266,7 +268,7 @@ const translations = {
     switchLight: "切换浅色模式",
     switchEnglish: "Switch to English",
     taskOpen: "开放任务",
-    updated: "活动",
+    updated: "来源更新",
     project: "项目",
     reward: "报酬",
     rewardUnknown: "金额未注明",
@@ -298,7 +300,9 @@ const translations = {
     brandTagline: "Creative Opportunity Radar",
     primaryNavLabel: "Primary navigation",
     navContests: "Contests",
-    navGuides: "Participation guides",
+    navGuides: "Guides",
+    navReviews: "Reviews",
+    navResources: "Resources",
     navPlanner: "Planner",
     navAbout: "About & methodology",
     navPrivacy: "Privacy",
@@ -377,7 +381,7 @@ const translations = {
     platformKicker: "Source coverage",
     platformTitle: "Reliable official entries, even without a public API",
     platformIntro: "We do not scrape account-only work. These official entries show integration status while we prioritize APIs, feeds, and partnerships.",
-    matcherKicker: "Phase two · Opportunity matcher",
+    matcherKicker: "Opportunity matcher",
     matcherTitle: "It will not claim work for you. It helps you avoid traps and set priorities first.",
     matcherText: "Use your strengths, time, and goals to calculate an explainable fit, then create preflight, execution, and submission checklists. You can still browse everything without a profile.",
     matcherPrivacyTitle: "Your profile stays in this browser",
@@ -476,7 +480,7 @@ const translations = {
     copiedOutreach: "Outreach template copied.",
     copiedAiPrompt: "Analysis prompt copied.",
     copyFailed: "Copy failed. Expand the content and copy it manually.",
-    assistantKicker: "Phase three · Conversation assistant",
+    assistantKicker: "Conversation assistant",
     assistantTitle: "Turn a decision into a conversation you can continue",
     assistantIntro: "Questions and replies use a random device ID and are saved on this device without browser fingerprinting. Cloud sync starts after storage is configured.",
     assistantDevice: (label) => `Anonymous device ${label}`,
@@ -532,7 +536,7 @@ const translations = {
     switchLight: "Switch to light mode",
     switchEnglish: "切换为中文",
     taskOpen: "Open task",
-    updated: "Active",
+    updated: "Source updated",
     project: "Repository",
     reward: "Reward",
     rewardUnknown: "Amount not stated",
@@ -822,6 +826,8 @@ function renderTaskCard(task) {
         ${matchMarkup}
         <h3>${title}</h3>
         <p class="task-project">${escapeHtml(t("project"))} · ${escapeHtml(task.source_repo)} #${escapeHtml(task.source_number)}</p>
+        <p class="task-source-context">${state.lang === 'zh' ? '最初发布' : 'First published'} ${escapeHtml(formatDate(task.published_at))} · ${state.lang === 'zh' ? '近期活动不代表赏金已重新确认' : 'Recent activity does not reconfirm a bounty'}</p>
+        ${new Date(state.now).getTime() - Date.parse(task.published_at) > 365 * 86400000 ? `<p class="source-age">${state.lang === 'zh' ? '这是超过一年的历史议题。投入前先确认当前需求、领取资格与付款条件。' : 'This issue is over a year old. Confirm the current scope, claiming eligibility and payment before investing time.'} <a href="${state.lang === 'en' ? '/en' : ''}/guides/verify-a-historical-bounty/">${state.lang === 'zh' ? '看实际核验示例' : 'Read a verification case study'} →</a></p>` : ''}
         <div class="task-card-tags">
           ${categories}
           <span class="task-policy-badge" data-policy="${escapeHtml(task.ai_policy)}">${escapeHtml(aiPolicyLabel(task.ai_policy))}</span>
